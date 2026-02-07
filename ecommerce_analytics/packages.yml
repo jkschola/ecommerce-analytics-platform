@@ -1,0 +1,23 @@
+# packages.yml
+packages:
+  # The primary utility package
+  - package: dbt-labs/dbt_utils
+    version: 1.3.3
+
+  # Automates YAML generation (Vital for scaling e-commerce staging)
+  - package: dbt-labs/codegen
+    version: 0.14.0
+
+  # NEW: Advanced Data Quality (Essential for E-commerce SLAs)
+  # Provides tests like 'expect_column_values_to_be_between' for prices
+  - package: metaplane/dbt_expectations
+    version: 0.10.10
+
+  # NEW: Governance & Best Practices
+  # Automatically yells at you if you join a source directly to a mart
+  - package: dbt-labs/dbt_project_evaluator
+    version: 0.10.0
+
+  # NEW: Date handling (Easier time-zone conversions for global sales)
+  - package: godatadriven/dbt_date
+    version: 0.17.1    

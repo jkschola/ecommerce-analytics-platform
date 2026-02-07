@@ -1,0 +1,14 @@
+# dbt and adapters (Targeting dbt 1.8+ for cross-project ref & unit tests)
+dbt-core>=1.8.0
+dbt-snowflake>=1.8.0
+
+# Data generation & processing
+pandas>=2.2.0
+faker>=30.0.0
+numpy>=1.26.0
+snowflake-connector-python[pandas]>=3.10.0
+
+# Quality & Automation
+sqlfluff>=3.1.0
+pre-commit>=3.7.0
+python-dotenv>=1.0.1
