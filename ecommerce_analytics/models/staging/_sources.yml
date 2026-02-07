@@ -1,0 +1,296 @@
+# models/staging/_sources.yml
+version: 2
+
+# ============================================
+# SHOPIFY SOURCE
+# ============================================
+sources:
+  - name: shopify
+    description: >
+      Raw e-commerce data from Shopify platform.
+      
+      **Refresh cadence:** Daily at 2:00 AM UTC via Fivetran
+      
+      **Data ownership:** E-commerce team (ecommerce@company.com)
+      
+      **SLA:** Data available by 3:00 AM UTC
+    
+    database: ECOMMERCE_RAW
+    schema: SHOPIFY
+    
+    # Source freshness monitoring (Topic 7: Implementing source freshness)
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 48, period: hour}
+    
+    # Loaded at timestamp (when data was loaded to warehouse)
+    loaded_at_field: _loaded_at
+    
+    tables:
+      # ----------------------------------------
+      # ORDERS TABLE
+      # ----------------------------------------
+      - name: orders
+        description: >
+          Raw order transactions from Shopify.
+          
+          **Grain:** One row per order
+          
+          **Primary Key:** order_id
+          
+          **Update pattern:** Insert and update (orders can be modified after creation)
+        
+        # Source-level tests (Topic 5: Testing sources)
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "order_date <= updated_at"
+              config:
+                severity: warn
+                error_if: ">100"
+        
+        columns:
+          - name: order_id
+            description: Unique identifier for each order (Shopify internal ID)
+            tests:
+              - unique
+              - not_null
+              
+          - name: customer_id
+            description: Foreign key to customers table
+            tests:
+              - not_null
+              - relationships:
+                  to: source('shopify', 'customers')
+                  field: customer_id
+                  
+          - name: order_date
+            description: Timestamp when order was placed (UTC timezone)
+            tests:
+              - not_null
+              
+          - name: total_amount
+            description: >
+              Total order value in EUR including tax and shipping.
+              Can be negative for refunded orders.
+              
+          - name: status
+            description: Current order status
+            tests:
+              - accepted_values:
+                  values: ['pending', 'completed', 'cancelled', 'refunded']
+                  quote: true
+                  
+          - name: created_at
+            description: Timestamp when record was created in Shopify
+            tests:
+              - not_null
+              
+          - name: updated_at
+            description: Timestamp when record was last modified
+            tests:
+              - not_null
+              
+          - name: _loaded_at
+            description: Timestamp when data was loaded to Snowflake (set by Fivetran)
+      
+      # ----------------------------------------
+      # CUSTOMERS TABLE
+      # ----------------------------------------
+      - name: customers
+        description: >
+          Customer master data from Shopify.
+          
+          **Grain:** One row per customer
+          
+          **Primary Key:** customer_id
+          
+          **Update pattern:** Slowly changing dimension (updates in place)
+        
+        columns:
+          - name: customer_id
+            description: Unique identifier for each customer
+            tests:
+              - unique
+              - not_null
+              
+          - name: email
+            description: Customer email address (PII - handle carefully)
+            tests:
+              - not_null
+              
+          - name: first_name
+            description: Customer first name (PII)
+            
+          - name: last_name
+            description: Customer last name (PII)
+            
+          - name: country
+            description: Customer country of residence (ISO 3166-1 alpha-2 code expected)
+            tests:
+              - accepted_values:
+                  values: ['France', 'Germany', 'Spain', 'Italy', 'Belgium', 
+                           'Netherlands', 'UK', 'Switzerland']
+                  quote: true
+                  
+          - name: created_at
+            description: Timestamp when customer account was created
+            tests:
+              - not_null
+              
+          - name: updated_at
+            description: Timestamp when customer record was last updated
+            
+          - name: _loaded_at
+            description: Timestamp when data was loaded to Snowflake
+
+  # ============================================
+  # GOOGLE ANALYTICS SOURCE
+  # ============================================
+  - name: google_analytics
+    description: >
+      Website analytics data from Google Analytics 4.
+      
+      **Refresh cadence:** Daily at 4:00 AM UTC
+      
+      **Data ownership:** Marketing team (marketing@company.com)
+    
+    database: ECOMMERCE_RAW
+    schema: GOOGLE_ANALYTICS
+    
+    freshness:
+      warn_after: {count: 26, period: hour}
+      error_after: {count: 50, period: hour}
+    
+    tables:
+      # ----------------------------------------
+      # SESSIONS TABLE
+      # ----------------------------------------
+      - name: sessions
+        description: >
+          Website session-level analytics.
+          
+          **Grain:** One row per session
+          
+          **Primary Key:** session_id
+        
+        columns:
+          - name: session_id
+            description: Unique identifier for each session
+            tests:
+              - unique
+              - not_null
+              
+          - name: user_id
+            description: Anonymous user identifier (cookie-based)
+            
+          - name: session_date
+            description: Date and time when session started
+            tests:
+              - not_null
+              
+          - name: page_views
+            description: Number of pages viewed during session
+            tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  expression: ">= 1"
+                  
+          - name: session_duration_seconds
+            description: Total session duration in seconds
+            tests:
+              - dbt_utils.expression_is_true:
+                  expression: ">= 0"
+                  
+          - name: source
+            description: Traffic source (organic, paid, direct, referral, social)
+            tests:
+              - accepted_values:
+                  values: ['organic', 'paid', 'direct', 'referral', 'social']
+                  quote: true
+                  
+          - name: medium
+            description: Traffic medium (google, facebook, email, etc.)
+            
+          - name: campaign
+            description: Campaign name (for paid traffic)
+            
+          - name: _loaded_at
+            description: Timestamp when data was loaded to Snowflake
+
+  # ============================================
+  # FACEBOOK ADS SOURCE
+  # ============================================
+  - name: facebook_ads
+    description: >
+      Daily advertising performance metrics from Facebook Ads platform.
+      
+      **Refresh cadence:** Daily at 5:00 AM UTC
+      
+      **Data ownership:** Marketing team (marketing@company.com)
+    
+    database: ECOMMERCE_RAW
+    schema: FACEBOOK_ADS
+    
+    freshness:
+      warn_after: {count: 27, period: hour}
+      error_after: {count: 51, period: hour}
+    
+    tables:
+      # ----------------------------------------
+      # AD PERFORMANCE TABLE
+      # ----------------------------------------
+      - name: ad_performance
+        description: >
+          Daily ad-level performance metrics.
+          
+          **Grain:** One row per ad per day
+          
+          **Primary Key:** (ad_id, date)
+        
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns:
+                - ad_id
+                - date
+        
+        columns:
+          - name: ad_id
+            description: Unique identifier for each ad
+            tests:
+              - not_null
+              
+          - name: date
+            description: Date of performance metrics
+            tests:
+              - not_null
+              
+          - name: impressions
+            description: Number of times ad was shown
+            tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  expression: ">= 0"
+                  
+          - name: clicks
+            description: Number of clicks on ad
+            tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  expression: ">= 0"
+                  
+          - name: spend
+            description: Amount spent on ad in EUR
+            tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  expression: ">= 0"
+                  
+          - name: conversions
+            description: Number of conversions attributed to ad
+            tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  expression: ">= 0"
+                  
+          - name: _loaded_at
+            description: Timestamp when data was loaded to Snowflake
