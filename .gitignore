@@ -1,0 +1,37 @@
+# dbt artifacts
+target/
+dbt_packages/
+logs/
+dbt_modules/
+.user.yml
+
+# Python
+*.pyc
+__pycache__/
+venv/
+.env
+*.egg-info/
+.python-version
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Credentials (NEVER commit these)
+profiles.yml
+snowflake_credentials.txt
+
+# Data files (too large for git)
+*.csv
+*.parquet
+*.json
+!data/seeds/*.csv
+
+# Logs
+*.log
