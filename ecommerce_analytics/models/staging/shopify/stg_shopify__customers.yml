@@ -58,6 +58,7 @@ models:
         description: Customer country of residence
         tests:
           - accepted_values:
+              name : accepted_values_stg_shopify_customer_country
               values: ['France', 'Germany', 'Spain', 'Italy', 'Belgium', 
                        'Netherlands', 'UK', 'Switzerland']
               quote: true
