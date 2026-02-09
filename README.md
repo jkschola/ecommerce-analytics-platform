@@ -1,9 +1,10 @@
 # E-Commerce Analytics Platform
 
-[![dbt](https://img.shields.io/badge/dbt-1.7.4-orange.svg)](https://www.getdbt.com/)
-[![Snowflake](https://img.shields.io/badge/Snowflake-ready-blue.svg)](https://www.snowflake.com/)
+[![dbt](https://img.shields.io/badge/dbt-1.8.0+-orange.svg)](https://www.getdbt.com/)
+[![Snowflake](https://img.shields.io/badge/Snowflake-1.8.0+-blue.svg)](https://www.snowflake.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**A production-grade analytics engineering project demonstrating modern data stack best practices**
+**A production-grade analytics engineering project leveraging dbt 1.8+ features to build a robust, governed data platform on Snowflake.**
 
 ## 🎯 Project Goals
 
@@ -13,7 +14,7 @@ Build a multi-source e-commerce analytics platform covering the complete Analyti
 - ✅ CI/CD automation
 - ✅ Production-ready documentation
 
-## 📊 Architecture
+## 📊 Architecture & Data Flow
 ```
 Sources (Shopify, GA, Facebook Ads)
     ↓
@@ -24,79 +25,93 @@ Intermediate Layer (business logic)
 Marts Layer (analytics-ready)
 ```
 
-## 🏗️ Current Status
 
-**Day 1 Complete:** Foundation & Infrastructure ✅
+```mermaid
+graph LR
+    A[Shopify] --> STG[Staging]
+    B[GA4] --> STG
+    C[FB Ads] --> STG
+    STG --> INT[Intermediate]
+    INT --> MARTS[Marts/Gold]
+    MARTS --> BI[Analytics/Dashboards]
+```
 
-### Data Pipeline
-| Layer | Models | Tests | Status |
-|-------|--------|-------|--------|
-| Sources | 4 tables | 20+ | ✅ Configured |
-| Staging | 1/8 models | 10 | ✅ In Progress |
-| Intermediate | 0 models | 0 | 📅 Day 3-4 |
-| Marts | 0 models | 0 | 📅 Day 4-5 |
+## 🏗️ Current Status: Day 1 Complete ✅
 
-### Infrastructure
-- ✅ Snowflake environment (2 databases, 5 schemas)
-- ✅ dbt project (dev/prod targets)
-- ✅ 116,500 synthetic records loaded
-- ✅ Git workflow with protected main branch
-- ✅ PR template and documentation
+**Milestone:** Infrastructure established and initial data load successful.
 
-## 📈 Data Sources
+### Data Pipeline Progress
+| Layer | Models | Tests | Status | Key Features |
+| :--- | :--- | :--- | :--- | :--- |
+| **Sources** | 4 tables | 20+ | ✅ Loaded | Freshness SLAs |
+| **Staging** | 1/8 models | 10 | 🚧 In Progress | Naming Standards |
+| **Intermediate** | 0 models | 0 | 📅 Planned | Business Logic |
+| **Marts** | 0 models | 0 | 📅 Planned | Data Contracts |
 
-| Source | Table | Records | Grain |
-|--------|-------|---------|-------|
-| Shopify | customers | 5,000 | One per customer |
-| Shopify | orders | 25,000 | One per order |
-| Google Analytics | sessions | 50,000 | One per session |
-| Facebook Ads | ad_performance | 36,500 | One per ad per day |
+### Infrastructure Highlights
 
-## 🚀 Quick Start
-```bash
-# Clone repository
-git clone https://github.com/jkschola/ecommerce-analytics-platform.git
+- ✅ **Snowflake:** Configured with `ANALYTICS_ENGINEER` RBAC and dedicated `ECOMMERCE_RAW` / `ECOMMERCE_ANALYTICS` databases.
+- ✅ **Python Setup:** Automated synthetic data generation via `Faker` and `NumPy` (116,500 records).
+- ✅ **Security:** Zero hardcoded credentials; managed via `.env` and `env_var`.
+- ✅ **Git workflow:** Protected `main` branch with structured PR template.
+
+## 📈 Data Sources Inventory
+
+| Source | Table | Records | Grain | Update Pattern |
+| :--- | :--- | :--- | :--- | :--- |
+| **Shopify** | `customers` | 5,000 | 1 row per customer | SCD Type 1 |
+| **Shopify** | `orders` | 25,000 | 1 row per order | Append/Update |
+| **GA4** | `sessions` | 50,000 | 1 row per session | Append |
+| **FB Ads** | `ad_performance` | 36,500 | 1 row per ad/day | Snapshot |
+
+## 🚀 Quick Start (Windows/VS Code)
+
+```PowerShell
+# 1. Clone repository
+git clone [https://github.com/jkschola/ecommerce-analytics-platform.git](https://github.com/jkschola/ecommerce-analytics-platform.git)
 cd ecommerce-analytics-platform
 
-# Set up Python environment
-python3 -m venv venv        # On Windows: python -m venv venv
-source venv/bin/activate    # On Windows: .\venv\Scripts\activate
+# 2. Environment Setup
+python -m venv venv
+.\venv\Scripts\activate
 pip install -r requirements.txt
 
-# Configure dbt (update ~/.dbt/profiles.yml with your Snowflake credentials)
+# 3. Data Generation & Loading
+# Ensure .env is configured with Snowflake credentials
+python scripts/generate_sample_data.py
+cd scripts
+python load_to_snowflake.py
+cd ..
 
-# Install dbt packages
+# 4. Initialize dbt
 cd ecommerce_analytics
 dbt deps
+dbt debug  # Verify connection
 
-# Run models
+# 5. Build & Test
 dbt run --select staging
-
-# Run tests
 dbt test
-
-# View documentation
 dbt docs generate && dbt docs serve
 ```
 
+
 ## 📚 Tech Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Data Warehouse | Snowflake |
-| Transformation | dbt Core 1.7.4 |
-| Orchestration | GitHub Actions (coming) |
-| Languages | SQL, Python |
-| Version Control | Git/GitHub |
-| Packages | dbt-utils, codegen |
+Component | Technology | Version |
+| :--- | :--- | :--- |
+| **Data Warehouse** | Snowflake | 1.8.0+ |
+| **Transformation** | dbt Core | 1.8.0+ |
+| **Data Generation** | Python (Faker/Pandas) | 3.10+ |
+| **CI/CD** | GitHub Actions | Coming Soon |
+| **Key Packages** | `dbt-utils`, `codegen`, `dbt-expectations` | Latest |
 
 ## 📅 Development Roadmap
 
 ### ✅ Week 1: Foundation (Day 1-5)
 - [x] **Day 1:** Environment setup, source configuration, first staging model
-- [ ] **Day 2:** Complete staging layer (7 more models)
-- [ ] **Day 3:** Intermediate models + macros
-- [ ] **Day 4:** Marts layer (facts and dimensions)
+- [ ] **Day 2:** Completing Staging (Shopify, GA4, FB) + Unit Tests.
+- [ ] **Day 3:** Marketing Attribution logic in Intermediate layer.
+- [ ] **Day 4:** Marts Layer with **Enforced Data Contracts**.
 - [ ] **Day 5:** Incremental models + snapshots
 
 ### 📅 Week 2: Quality & Governance (Day 6-10)
@@ -106,46 +121,29 @@ dbt docs generate && dbt docs serve
 - [ ] **Day 9:** Exposures and deployment workflow
 - [ ] **Day 10:** Performance optimization + final polish
 
-## 🎓 dbt Analytics Engineering Certification Coverage
+## 🎓Certification Coverage
 
-This project covers all 8 certification topics:
+This project maps directly to the **dbt Analytics Engineering Certification** topics:
 
-- ✅ **Topic 1:** Developing dbt models
-- 📅 **Topic 2:** Understanding dbt models governance
-- 📅 **Topic 3:** Debugging data modeling errors
-- 📅 **Topic 4:** Managing data pipelines
-- ✅ **Topic 5:** Implementing dbt tests
-- ✅ **Topic 6:** Creating and maintaining dbt documentation
-- 📅 **Topic 7:** Implementing external dependencies
-- 📅 **Topic 8:** Leveraging the dbt state
+* ✅ **Developing dbt models & Documentation**
+* 📅 **Model governance & Data Contracts**
+* 📅 **Managing pipelines & dbt State**
+* ✅ **Implementing dbt tests & Source Freshness**
 
-## 📊 Quality Metrics (Day 1)
-
-| Metric | Value |
-|--------|-------|
-| Total tests | 30+ |
-| Passing tests | 30 (100%) |
-| Models with docs | 1/1 (100%) |
-| Source freshness | Configured |
-
-## 📝 Documentation
-
-- [Snowflake Setup Guide](docs/snowflake_setup.md)
-- [Day 1 Test Results](docs/stg_shopify__customers_test_results.md)
-- [dbt Docs](http://localhost:8080) (run `dbt docs serve`)
 
 ## 🤝 Contributing
 
 This is a portfolio project, but feedback is welcome! Please open an issue or PR.
 
+
 ## 📫 Contact
 
-**Janvier S** - *Analytics Engineer*
+**Janvier S** - *Analytics Engineer* [LinkedIn](https://www.linkedin.com/in/jkschola/) | [Portfolio](https://github.com/jkschola/)
 
-LinkedIn: [https://www.linkedin.com/in/jkschola/]
 
-Project Link: [https://github.com/jkschola/ecommerce-analytics-platform](https://github.com/jkschola/ecommerce-analytics-platform)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/jkschola/)
+[![Portfolio](https://img.shields.io/badge/Portfolio-222222?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jkschola/)
 
 ---
 
-*Last updated: Day 1 Complete - February 8, 2026*
+*Last updated: Day 1 Complete - February 9, 2026*
