@@ -1,4 +1,5 @@
 # dbt_project.yml
+
 name: 'ecommerce_analytics'
 version: '1.0.0'
 config-version: 2
@@ -111,8 +112,11 @@ vars:
   # Business constants
   default_currency: 'EUR'
   
-on-run-start:
-  - "{{ log('Starting dbt run for: ' ~ target.name, info=True) }}"
-  
-on-run-end:
-  - "{{ log('Completed dbt run for: ' ~ target.name, info=True) }}"
+# ============================================
+# LIFECYCLE HOOKS (disabled)
+# ============================================
+# on-run-start:
+#   - "{{ log('Starting dbt run for: ' ~ target.name, info=True) }}"
+#
+# on-run-end:
+#   - "{{ log('Completed dbt run for: ' ~ target.name, info=True) }}"

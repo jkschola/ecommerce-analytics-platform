@@ -1,9 +1,6 @@
 # models/staging/_sources.yml
 version: 2
 
-# ============================================
-# SHOPIFY SOURCE
-# ============================================
 sources:
   - name: shopify
     description: >
@@ -16,20 +13,22 @@ sources:
       **SLA:** Data available by 3:00 AM UTC
     
     database: ECOMMERCE_RAW
-    schema: SHOPIFY
+    #schema: SHOPIFY
     
-    # Source freshness monitoring (Topic 7: Implementing source freshness)
-    freshness:
-      warn_after: {count: 24, period: hour}
-      error_after: {count: 48, period: hour}
+    # ❌ OLD (deprecated) - Don't put freshness here
+    # freshness:
+    #   warn_after: {count: 24, period: hour}
+    #   error_after: {count: 48, period: hour}
     
-    # Loaded at timestamp (when data was loaded to warehouse)
+    # ✅ NEW - Move freshness into config
+    config:
+      freshness:
+        warn_after: {count: 24, period: hour}
+        error_after: {count: 48, period: hour}
+    
     loaded_at_field: _loaded_at
     
     tables:
-      # ----------------------------------------
-      # ORDERS TABLE
-      # ----------------------------------------
       - name: orders
         description: >
           Raw order transactions from Shopify.
@@ -40,7 +39,6 @@ sources:
           
           **Update pattern:** Insert and update (orders can be modified after creation)
         
-        # Source-level tests (Topic 5: Testing sources)
         tests:
           - dbt_utils.expression_is_true:
               expression: "order_date <= updated_at"
@@ -93,9 +91,6 @@ sources:
           - name: _loaded_at
             description: Timestamp when data was loaded to Snowflake (set by Fivetran)
       
-      # ----------------------------------------
-      # CUSTOMERS TABLE
-      # ----------------------------------------
       - name: customers
         description: >
           Customer master data from Shopify.
@@ -143,9 +138,6 @@ sources:
           - name: _loaded_at
             description: Timestamp when data was loaded to Snowflake
 
-  # ============================================
-  # GOOGLE ANALYTICS SOURCE
-  # ============================================
   - name: google_analytics
     description: >
       Website analytics data from Google Analytics 4.
@@ -155,16 +147,15 @@ sources:
       **Data ownership:** Marketing team (marketing@company.com)
     
     database: ECOMMERCE_RAW
-    schema: GOOGLE_ANALYTICS
+    #schema: GOOGLE_ANALYTICS
     
-    freshness:
-      warn_after: {count: 26, period: hour}
-      error_after: {count: 50, period: hour}
+    # ✅ Move freshness into config
+    config:
+      freshness:
+        warn_after: {count: 26, period: hour}
+        error_after: {count: 50, period: hour}
     
     tables:
-      # ----------------------------------------
-      # SESSIONS TABLE
-      # ----------------------------------------
       - name: sessions
         description: >
           Website session-level analytics.
@@ -217,9 +208,6 @@ sources:
           - name: _loaded_at
             description: Timestamp when data was loaded to Snowflake
 
-  # ============================================
-  # FACEBOOK ADS SOURCE
-  # ============================================
   - name: facebook_ads
     description: >
       Daily advertising performance metrics from Facebook Ads platform.
@@ -231,14 +219,13 @@ sources:
     database: ECOMMERCE_RAW
     schema: FACEBOOK_ADS
     
-    freshness:
-      warn_after: {count: 27, period: hour}
-      error_after: {count: 51, period: hour}
+    # ✅ Move freshness into config
+    config:
+      freshness:
+        warn_after: {count: 27, period: hour}
+        error_after: {count: 51, period: hour}
     
     tables:
-      # ----------------------------------------
-      # AD PERFORMANCE TABLE
-      # ----------------------------------------
       - name: ad_performance
         description: >
           Daily ad-level performance metrics.
