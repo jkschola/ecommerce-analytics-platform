@@ -1,13 +1,9 @@
-# dbt_project.yml
-
 name: 'ecommerce_analytics'
 version: '1.0.0'
 config-version: 2
 
-# Profile configuration (connects to profiles.yml)
 profile: 'ecommerce_analytics'
 
-# Directory paths
 model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
@@ -15,108 +11,22 @@ seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
-# Cleanup targets
 clean-targets:
   - "target"
   - "dbt_packages"
 
-# ============================================
-# MODEL CONFIGURATIONS
-# ============================================
-# These apply to all models unless overridden
-
 models:
   ecommerce_analytics:
-    
-    # STAGING LAYER
-    # Purpose: Standardize source data (renaming, type casting, basic cleaning)
-    # Materialization: Views (ephemeral transformations, no storage cost)
     staging:
       +materialized: view
       +schema: staging
-      +tags: ["staging"]
-      
-      # Source-specific configurations
-      shopify:
-        +tags: ["staging", "shopify"]
-        
-      google_analytics:
-        +tags: ["staging", "google_analytics"]
-        
-      facebook_ads:
-        +tags: ["staging", "facebook_ads"]
-    
-    # INTERMEDIATE LAYER  
-    # Purpose: Reusable business logic components
-    # Materialization: Views (composable, no duplication)
     intermediate:
       +materialized: view
       +schema: intermediate
-      +tags: ["intermediate"]
-      
-    # MARTS LAYER
-    # Purpose: Business-facing analytics tables
-    # Materialization: Tables (performance for end users)
     marts:
       +materialized: table
       +schema: marts
-      +tags: ["marts"]
-      
-      # Business domain configurations
-      core:
-        +tags: ["marts", "core"]
-        +schema: marts_core
-        
-      marketing:
-        +tags: ["marts", "marketing"]
-        +schema: marts_marketing
-        
-      finance:
-        +tags: ["marts", "finance"]
-        +schema: marts_finance
 
-# ============================================
-# SNAPSHOT CONFIGURATIONS
-# ============================================
-snapshots:
-  ecommerce_analytics:
-    +target_schema: snapshots
-    +unique_key: id
-    +strategy: timestamp
-    +updated_at: updated_at
-
-# ============================================
-# SEED CONFIGURATIONS
-# ============================================
-seeds:
-  ecommerce_analytics:
-    +schema: seed_data
-    +tags: ["seed"]
-
-# ============================================
-# TEST CONFIGURATIONS
-# ============================================
-tests:
-  ecommerce_analytics:
-    +store_failures: true
-    +schema: test_failures
-
-# ============================================
-# GLOBAL VARIABLES
-# ============================================
+# Temporarily remove vars and hooks to find the error
 vars:
-  # Date range for development
   start_date: '2023-01-01'
-  end_date: '2024-12-31'
-  
-  # Business constants
-  default_currency: 'EUR'
-  
-# ============================================
-# LIFECYCLE HOOKS (disabled)
-# ============================================
-# on-run-start:
-#   - "{{ log('Starting dbt run for: ' ~ target.name, info=True) }}"
-#
-# on-run-end:
-#   - "{{ log('Completed dbt run for: ' ~ target.name, info=True) }}"
