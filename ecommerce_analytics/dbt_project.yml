@@ -13,7 +13,7 @@ snapshot-paths: ["snapshots"]
 
 clean-targets:
   - "target"
-  - "dbt_packages"
+  #- "dbt_packages"
 
 models:
   ecommerce_analytics:
