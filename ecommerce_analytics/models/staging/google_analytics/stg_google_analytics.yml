@@ -81,6 +81,9 @@ models:
         description: "{{ doc('engagement_level_logic') }}"
         tests:
           - not_null
+          - accepted_values:
+              values: ['bounce', 'low_engagement', 'medium_engagement', 'high_engagement']
+              quote: true
         
       - name: is_bounce
         description: >
@@ -88,6 +91,8 @@ models:
           True when page_views = 1 AND session_duration_seconds < 30.
         tests:
           - not_null
+          - accepted_values:
+              values: [true, false]
         
       - name: is_engaged_session
         description: >
@@ -95,11 +100,16 @@ models:
           True when page_views >= 5 OR session_duration_seconds >= 180 (3 minutes).
         tests:
           - not_null
+          - accepted_values:
+              values: [true, false]
         
       - name: traffic_source
         description: Traffic source normalized to lowercase (organic, paid, direct, referral, social)
         tests:
           - not_null
+          - accepted_values:
+              values: ['organic', 'paid', 'direct', 'referral', 'social']
+              quote: true
           
       - name: traffic_medium
         description: Traffic medium normalized to lowercase (google, facebook, email, etc.)
@@ -114,16 +124,23 @@ models:
           referral_traffic, social_media, or other.
         tests:
             - not_null
+            - accepted_values:
+                values: ['organic_search', 'paid_advertising', 'direct_traffic', 'referral_traffic', 'social_media', 'other']
+                quote: true
         
       - name: is_paid_traffic
         description: Boolean flag. True when traffic_source = 'paid'.
         tests:
           - not_null
+          - accepted_values:
+              values: [true, false]
         
       - name: is_organic_traffic
         description: Boolean flag. True when traffic_source = 'organic'.
         tests:
           - not_null
+          - accepted_values:
+              values: [true, false]
         
       - name: loaded_at_timestamp
         description: Timestamp when data was loaded to Snowflake from source system
