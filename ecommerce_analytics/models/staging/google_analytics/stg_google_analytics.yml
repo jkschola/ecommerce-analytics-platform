@@ -29,6 +29,9 @@ models:
     columns:
       - name: session_id
         description: Unique identifier for each session
+        tests:
+          - unique
+          - not_null
           
       - name: user_id
         description: Anonymous user identifier (cookie-based, not PII)
