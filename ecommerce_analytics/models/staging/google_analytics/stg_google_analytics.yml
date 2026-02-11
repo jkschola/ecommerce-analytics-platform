@@ -1,0 +1,7 @@
+version: 2
+models:
+  - name: stg_google_analytics__sessions
+    description: "Staging model for Google Analytics session data."
+    columns:
+      - name: session_id
+        description: "Unique identifier for each session"
