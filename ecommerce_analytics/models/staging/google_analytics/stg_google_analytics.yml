@@ -25,6 +25,14 @@ models:
     
     config:
       tags: ['staging', 'google_analytics', 'daily', 'web_analytics']
+
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "session_duration_seconds >= (page_views * 5) or page_views = 1"
+          config:
+            severity: warn
+            warn_if: ">500"  # Warn if more than 500 sessions violate the minimum engagement threshold
+        
     
     columns:
       - name: session_id
@@ -58,11 +66,17 @@ models:
         description: Number of pages viewed during session (minimum 1)
         tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 1"
+              config:
+                severity: error
         
       - name: session_duration_seconds
         description: Total duration of session in seconds
         tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
         
       - name: session_duration_minutes
         description: Session duration converted to minutes (rounded to 2 decimals)
@@ -76,6 +90,8 @@ models:
           Returns 0 when page_views = 0 to avoid division by zero.
         tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
         
       - name: engagement_level
         description: "{{ doc('engagement_level_logic') }}"
