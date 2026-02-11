@@ -1,6 +1,5 @@
 -- models/staging/google_analytics/stg_google_analytics__sessions.sql
--- Step 1: Minimal version - source connection and column renames only
--- Derived columns and business logic added in subsequent commits
+-- Add derived time columns
 
 {{
     config(
@@ -24,12 +23,28 @@ renamed as (
         -- User identification
         user_id,
 
-        -- Session timing
+        -- Session timing (raw)
         session_date,
+
+        -- Session timing (derived)
+        cast(session_date as date)                                  as session_date_day,
+        date_trunc('week', cast(session_date as date))              as session_date_week,
+        date_trunc('month', cast(session_date as date))             as session_date_month,
 
         -- Engagement metrics (raw)
         page_views,
         session_duration_seconds,
+
+        -- Engagement metrics (derived)
+        round(session_duration_seconds / 60.0, 2)                   as session_duration_minutes,
+
+        round(
+            case
+                when page_views > 0
+                    then session_duration_seconds / page_views
+                else 0
+            end,
+        2)                                                          as avg_time_per_page_seconds,
 
         -- Attribution (renamed for clarity)
         source          as traffic_source,
