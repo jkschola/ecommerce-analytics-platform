@@ -35,12 +35,18 @@ models:
           
       - name: user_id
         description: Anonymous user identifier (cookie-based, not PII)
+        tests:
+          - not_null
         
       - name: session_date
         description: Timestamp when session started (UTC)
+        tests:
+          - not_null
         
       - name: session_date_day
         description: Date of session (truncated to day)
+        tests:
+          - not_null
         
       - name: session_date_week
         description: Week start date (Monday) of session
@@ -50,34 +56,50 @@ models:
         
       - name: page_views
         description: Number of pages viewed during session (minimum 1)
+        tests:
+          - not_null
         
       - name: session_duration_seconds
         description: Total duration of session in seconds
+        tests:
+          - not_null
         
       - name: session_duration_minutes
         description: Session duration converted to minutes (rounded to 2 decimals)
+        tests:
+          - not_null
         
       - name: avg_time_per_page_seconds
         description: >
           Average time spent per page view in seconds.
           Calculated as session_duration_seconds / page_views.
           Returns 0 when page_views = 0 to avoid division by zero.
+        tests:
+          - not_null
         
       - name: engagement_level
         description: "{{ doc('engagement_level_logic') }}"
+        tests:
+          - not_null
         
       - name: is_bounce
         description: >
           Boolean flag for bounced sessions.
           True when page_views = 1 AND session_duration_seconds < 30.
+        tests:
+          - not_null
         
       - name: is_engaged_session
         description: >
           Boolean flag for meaningfully engaged sessions.
           True when page_views >= 5 OR session_duration_seconds >= 180 (3 minutes).
+        tests:
+          - not_null
         
       - name: traffic_source
         description: Traffic source normalized to lowercase (organic, paid, direct, referral, social)
+        tests:
+          - not_null
           
       - name: traffic_medium
         description: Traffic medium normalized to lowercase (google, facebook, email, etc.)
@@ -90,12 +112,18 @@ models:
           Grouped traffic channel for high-level attribution analysis.
           Maps traffic_source to: organic_search, paid_advertising, direct_traffic,
           referral_traffic, social_media, or other.
+        tests:
+            - not_null
         
       - name: is_paid_traffic
         description: Boolean flag. True when traffic_source = 'paid'.
+        tests:
+          - not_null
         
       - name: is_organic_traffic
         description: Boolean flag. True when traffic_source = 'organic'.
+        tests:
+          - not_null
         
       - name: loaded_at_timestamp
         description: Timestamp when data was loaded to Snowflake from source system
