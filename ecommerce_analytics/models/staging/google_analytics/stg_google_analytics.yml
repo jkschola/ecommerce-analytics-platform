@@ -134,10 +134,7 @@ models:
         description: Campaign name for paid traffic (null for organic/direct traffic)
         
       - name: traffic_channel
-        description: >
-          Grouped traffic channel for high-level attribution analysis.
-          Maps traffic_source to: organic_search, paid_advertising, direct_traffic,
-          referral_traffic, social_media, or other.
+        description:  "{{ doc('traffic_channel_logic') }}"
         tests:
             - not_null
             - accepted_values:
