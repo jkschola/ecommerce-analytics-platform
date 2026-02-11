@@ -31,7 +31,7 @@ select
     count(*) as total_sessions,
     sum(case when engagement_level = 'high_engagement' then 1 else 0 end) as high_engagement_sessions,
     avg(case when engagement_level = 'high_engagement' then 1 else 0 end) as engagement_rate
-from {{ ref('stg_google_analytics__sessions') }}
+from {% raw %}{{ ref('stg_google_analytics__sessions') }}{% endraw %}
 group by 1
 ```
 {% enddocs %}
