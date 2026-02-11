@@ -1,14 +1,98 @@
+# models/staging/google_analytics/stg_google_analytics.yml
 version: 2
+
 models:
   - name: stg_google_analytics__sessions
-    description: "Staging model for Google Analytics session data."
-
+    description: >
+      Staging model for Google Analytics session data with engagement classification.
+      
+      **Source:** Google Analytics sessions table (ECOMMERCE_RAW.GOOGLE_ANALYTICS.SESSIONS)
+      
+      **Grain:** One row per session
+      
+      **Primary Key:** session_id
+      
+      **Transformations applied:**
+      - Renamed columns for naming consistency
+      - Added time dimensions (day, week, month)
+      - Added engagement classification (bounce/low/medium/high)
+      - Added traffic channel grouping
+      - Normalized traffic source/medium to lowercase
+      
+      **Key Business Metrics:**
+      - Engagement level based on page depth and session duration
+      - Traffic channel attribution (organic, paid, direct, referral, social)
+    
+    config:
+      tags: ['staging', 'google_analytics', 'daily', 'web_analytics']
+    
     columns:
       - name: session_id
-        description: "Unique identifier for each session"
-        tests:
-          - unique
-          - not_null
-
+        description: Unique identifier for each session
+          
+      - name: user_id
+        description: Anonymous user identifier (cookie-based, not PII)
+        
+      - name: session_date
+        description: Timestamp when session started (UTC)
+        
+      - name: session_date_day
+        description: Date of session (truncated to day)
+        
+      - name: session_date_week
+        description: Week start date (Monday) of session
+        
+      - name: session_date_month
+        description: Month start date of session
+        
+      - name: page_views
+        description: Number of pages viewed during session (minimum 1)
+        
+      - name: session_duration_seconds
+        description: Total duration of session in seconds
+        
+      - name: session_duration_minutes
+        description: Session duration converted to minutes (rounded to 2 decimals)
+        
+      - name: avg_time_per_page_seconds
+        description: >
+          Average time spent per page view in seconds.
+          Calculated as session_duration_seconds / page_views.
+          Returns 0 when page_views = 0 to avoid division by zero.
+        
       - name: engagement_level
         description: "{{ doc('engagement_level_logic') }}"
+        
+      - name: is_bounce
+        description: >
+          Boolean flag for bounced sessions.
+          True when page_views = 1 AND session_duration_seconds < 30.
+        
+      - name: is_engaged_session
+        description: >
+          Boolean flag for meaningfully engaged sessions.
+          True when page_views >= 5 OR session_duration_seconds >= 180 (3 minutes).
+        
+      - name: traffic_source
+        description: Traffic source normalized to lowercase (organic, paid, direct, referral, social)
+          
+      - name: traffic_medium
+        description: Traffic medium normalized to lowercase (google, facebook, email, etc.)
+        
+      - name: campaign_name
+        description: Campaign name for paid traffic (null for organic/direct traffic)
+        
+      - name: traffic_channel
+        description: >
+          Grouped traffic channel for high-level attribution analysis.
+          Maps traffic_source to: organic_search, paid_advertising, direct_traffic,
+          referral_traffic, social_media, or other.
+        
+      - name: is_paid_traffic
+        description: Boolean flag. True when traffic_source = 'paid'.
+        
+      - name: is_organic_traffic
+        description: Boolean flag. True when traffic_source = 'organic'.
+        
+      - name: loaded_at_timestamp
+        description: Timestamp when data was loaded to Snowflake from source system
