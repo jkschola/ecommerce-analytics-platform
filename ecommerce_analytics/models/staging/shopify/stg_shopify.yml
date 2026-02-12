@@ -100,10 +100,14 @@ models:
     tests:
       # Custom test: order_date should be after customer creation
       - dbt_utils.expression_is_true:
-          expression: "order_date >= 0" #(select min(customer_created_at) from {{ ref('stg_shopify__customers') }})"
+          expression: "order_date >= '2023-01-01'::timestamp"  #(select min(customer_created_at) from {{ ref('stg_shopify__customers') }})"
           config:
-            severity: warn
-    
+            severity: error
+      - dbt_utils.expression_is_true:
+          expression: "order_date <= current_timestamp()"
+          config:
+            severity: error
+          
     columns:
       - name: order_id
         description: Unique identifier for each order (primary key)
