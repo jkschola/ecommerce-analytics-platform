@@ -1,0 +1,183 @@
+# models/staging/facebook_ads/stg_facebook_ads.yml
+version: 2
+
+models:
+  - name: stg_facebook_ads__ad_performance
+    description: >
+      Staging model for Facebook Ads daily performance metrics
+      with computed advertising KPIs.
+      
+      **Source:** ECOMMERCE_RAW.FACEBOOK_ADS.AD_PERFORMANCE
+      
+      **Grain:** One row per ad per day
+      
+      **Primary Key:** (ad_id, performance_date) — composite key
+      
+      **Transformations applied:**
+      - Added time dimensions (week, month, year, quarter)
+      - Computed standard advertising KPIs (CTR, CPC, CPM, CPA, CVR)
+      - Added performance tier classification based on CTR
+      - Added boolean delivery and activity flags
+      
+      **Important Note on NULL Metrics:**
+      CTR, CPC, CPM, CPA, and CVR use NULLIF to avoid division by
+      zero. NULL values are intentional and indicate no activity
+      in the denominator (e.g., no impressions = NULL CTR).
+      Use COALESCE or conditional aggregation in downstream models.
+      
+      **Performance Tier Thresholds:**
+      Based on CTR: high >= 4%, medium >= 2%, low >= 1%, else underperforming.
+      No delivery = 0 impressions that day.
+    
+    config:
+      tags: ['staging', 'facebook_ads', 'daily', 'marketing']
+
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - ad_id
+            - performance_date
+          config:
+            severity: error 
+
+      # Clicks can never exceed impressions
+      - dbt_utils.expression_is_true:
+          expression: "clicks <= impressions"
+          config:
+            severity: error 
+
+      # Spend must be non-negative
+      - dbt_utils.expression_is_true:
+          expression: "spend >= 0"
+          config:
+            severity: error
+
+      # Conversions can never exceed clicks
+      - dbt_utils.expression_is_true:
+          expression: "conversions <= clicks"
+          config:
+            severity: warn
+            warn_if: ">5"
+
+      # CTR must be between 0 and 1 when not null
+      - dbt_utils.expression_is_true:
+          expression: "click_through_rate <= 1 or click_through_rate is null"
+          config:
+            severity: error
+    
+    columns:
+      - name: ad_id
+        description: Unique identifier for each Facebook ad
+        tests:
+          - not_null
+
+      - name: performance_date
+        description: Date of the performance metrics (one row per ad per day)
+        tests:
+          - not_null
+
+      - name: performance_week
+        description: Week start date (Monday) of the performance record
+        tests:
+          - not_null
+
+      - name: performance_month
+        description: Month start date of the performance record
+
+      - name: performance_year
+        description: Year of the performance record
+        tests:
+          - not_null
+
+      - name: performance_quarter
+        description: Quarter number (1-4) of the performance record
+
+      - name: performance_month_num
+        description: Month number (1-12) of the performance record
+
+      - name: performance_day_of_week
+        description: Day of week number (0=Sunday, 6=Saturday in Snowflake)
+
+      - name: impressions
+        description: Number of times the ad was shown to users
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:  
+              expression: ">= 0"
+              config:
+                severity: error
+
+      - name: clicks
+        description: Number of clicks on the ad
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:  
+              expression: ">= 0"
+              config:
+                severity: error
+
+      - name: spend
+        description: Amount spent on the ad in EUR for this day
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:  
+              expression: ">= 0"
+              config:
+                severity: error
+
+      - name: conversions
+        description: Number of conversions attributed to this ad for this day
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:  
+              expression: ">= 0"
+              config:
+                severity: error
+
+      - name: click_through_rate
+        description: "{{ doc('ctr_definition') }}" 
+
+      - name: cost_per_click
+        description: "{{ doc('cpc_definition') }}"
+
+      - name: cost_per_mille
+        description: "{{ doc('cpm_definition') }}"
+
+      - name: cost_per_acquisition
+        description: "{{ doc('cpa_definition') }}"
+
+      - name: conversion_rate
+        description: "{{ doc('cvr_definition') }}"
+
+      - name: performance_tier
+        description: "{{ doc('performance_tier_thresholds') }}"
+        tests:
+          - not_null
+          - accepted_values:         
+              values: ['high_performance', 'medium_performance',
+                       'low_performance', 'underperforming', 'no_delivery']
+              quote: true  
+
+      - name: is_delivery_day
+        description: True when the ad had at least 1 impression on this day
+        tests:
+          - not_null
+          - accepted_values:         
+              values: [true, false]
+
+      - name: has_clicks
+        description: True when the ad generated at least 1 click on this day
+        tests:
+          - not_null
+          - accepted_values:         
+              values: [true, false]
+
+      - name: has_conversions
+        description: True when the ad generated at least 1 conversion on this day
+        tests:
+          - not_null
+          - accepted_values:         
+              values: [true, false]
+
+      - name: loaded_at_timestamp
+        description: Timestamp when data was loaded to Snowflake from source system
