@@ -135,28 +135,22 @@ models:
                 severity: error
 
       - name: click_through_rate
-        description: (CTR) clicks / impressions 
+        description: "{{ doc('ctr_definition') }}" 
 
       - name: cost_per_click
-        description: (CPC) is spend / clicks
+        description: "{{ doc('cpc_definition') }}"
 
       - name: cost_per_mille
-        description: (CPM) (spend / impressions) * 1000
+        description: "{{ doc('cpm_definition') }}"
 
       - name: cost_per_acquisition
-        description: (CPA) spend / conversions
+        description: "{{ doc('cpa_definition') }}"
 
       - name: conversion_rate
-        description: (CVR) conversions / clicks
+        description: "{{ doc('cvr_definition') }}"
 
       - name: performance_tier
-        description: >
-          CTR-based performance classification.
-          high_performance: CTR >= 4%
-          medium_performance: CTR >= 2%
-          low_performance: CTR >= 1%
-          underperforming: CTR < 1%
-          no_delivery: 0 impressions
+        description: "{{ doc('performance_tier_thresholds') }}"
         tests:
           - not_null
           - accepted_values:         
