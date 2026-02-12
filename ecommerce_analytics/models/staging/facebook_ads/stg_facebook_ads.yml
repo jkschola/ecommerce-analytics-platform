@@ -38,7 +38,32 @@ models:
             - ad_id
             - performance_date
           config:
-            severity: error  
+            severity: error 
+
+      # Clicks can never exceed impressions
+      - dbt_utils.expression_is_true:
+          expression: "clicks <= impressions"
+          config:
+            severity: error 
+
+      # Spend must be non-negative
+      - dbt_utils.expression_is_true:
+          expression: "spend >= 0"
+          config:
+            severity: error
+
+      # Conversions can never exceed clicks
+      - dbt_utils.expression_is_true:
+          expression: "conversions <= clicks"
+          config:
+            severity: warn
+            warn_if: ">5"
+
+      # CTR must be between 0 and 1 when not null
+      - dbt_utils.expression_is_true:
+          expression: "click_through_rate <= 1 or click_through_rate is null"
+          config:
+            severity: error
     
     columns:
       - name: ad_id
@@ -77,21 +102,37 @@ models:
         description: Number of times the ad was shown to users
         tests:
           - not_null
+          - dbt_utils.expression_is_true:  
+              expression: ">= 0"
+              config:
+                severity: error
 
       - name: clicks
         description: Number of clicks on the ad
         tests:
           - not_null
+          - dbt_utils.expression_is_true:  
+              expression: ">= 0"
+              config:
+                severity: error
 
       - name: spend
         description: Amount spent on the ad in EUR for this day
         tests:
           - not_null
+          - dbt_utils.expression_is_true:  
+              expression: ">= 0"
+              config:
+                severity: error
 
       - name: conversions
         description: Number of conversions attributed to this ad for this day
         tests:
           - not_null
+          - dbt_utils.expression_is_true:  
+              expression: ">= 0"
+              config:
+                severity: error
 
       - name: click_through_rate
         description: (CTR) clicks / impressions 
