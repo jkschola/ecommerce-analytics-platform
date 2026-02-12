@@ -31,13 +31,25 @@ models:
     
     config:
       tags: ['staging', 'facebook_ads', 'daily', 'marketing']
+
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - ad_id
+            - performance_date
+          config:
+            severity: error  
     
     columns:
       - name: ad_id
         description: Unique identifier for each Facebook ad
+        tests:
+          - not_null
 
       - name: performance_date
         description: Date of the performance metrics (one row per ad per day)
+        tests:
+          - not_null
 
       - name: performance_week
         description: Week start date (Monday) of the performance record
