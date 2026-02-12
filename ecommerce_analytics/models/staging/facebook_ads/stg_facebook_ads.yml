@@ -117,22 +117,32 @@ models:
           underperforming: CTR < 1%
           no_delivery: 0 impressions
         tests:
-          - not_null  
+          - not_null
+          - accepted_values:         
+              values: ['high_performance', 'medium_performance',
+                       'low_performance', 'underperforming', 'no_delivery']
+              quote: true  
 
       - name: is_delivery_day
         description: True when the ad had at least 1 impression on this day
         tests:
           - not_null
+          - accepted_values:         
+              values: [true, false]
 
       - name: has_clicks
         description: True when the ad generated at least 1 click on this day
         tests:
           - not_null
+          - accepted_values:         
+              values: [true, false]
 
       - name: has_conversions
         description: True when the ad generated at least 1 conversion on this day
         tests:
           - not_null
+          - accepted_values:         
+              values: [true, false]
 
       - name: loaded_at_timestamp
         description: Timestamp when data was loaded to Snowflake from source system
