@@ -53,12 +53,16 @@ models:
 
       - name: performance_week
         description: Week start date (Monday) of the performance record
+        tests:
+          - not_null
 
       - name: performance_month
         description: Month start date of the performance record
 
       - name: performance_year
         description: Year of the performance record
+        tests:
+          - not_null
 
       - name: performance_quarter
         description: Quarter number (1-4) of the performance record
@@ -71,15 +75,23 @@ models:
 
       - name: impressions
         description: Number of times the ad was shown to users
+        tests:
+          - not_null
 
       - name: clicks
         description: Number of clicks on the ad
+        tests:
+          - not_null
 
       - name: spend
         description: Amount spent on the ad in EUR for this day
+        tests:
+          - not_null
 
       - name: conversions
         description: Number of conversions attributed to this ad for this day
+        tests:
+          - not_null
 
       - name: click_through_rate
         description: (CTR) clicks / impressions 
@@ -104,15 +116,23 @@ models:
           low_performance: CTR >= 1%
           underperforming: CTR < 1%
           no_delivery: 0 impressions
+        tests:
+          - not_null  
 
       - name: is_delivery_day
         description: True when the ad had at least 1 impression on this day
+        tests:
+          - not_null
 
       - name: has_clicks
         description: True when the ad generated at least 1 click on this day
+        tests:
+          - not_null
 
       - name: has_conversions
         description: True when the ad generated at least 1 conversion on this day
+        tests:
+          - not_null
 
       - name: loaded_at_timestamp
         description: Timestamp when data was loaded to Snowflake from source system
