@@ -30,9 +30,19 @@ models:
     columns:
       - name: order_id
         description: Unique identifier for each order (Shopify internal ID)
+        tests:
+          - unique
+          - not_null
 
       - name: customer_id
         description: Foreign key to stg_shopify__customers
+        tests:
+          - not_null
+          - relationships:
+              to: source('shopify', 'customers')
+              field: customer_id
+              config:
+                severity: error
 
       - name: order_date
         description: Timestamp when order was placed in Shopify (UTC)
@@ -68,7 +78,7 @@ models:
         description: Absolute value of total_amount regardless of status. Always positive.
 
       - name: revenue
-        description: "{{ doc('revenue_recognition_logic') }}"
+        description: revenue contribution of the order. Equals total_amount for completed orders, else 0.
 
       - name: refund_amount
         description: >
@@ -82,7 +92,7 @@ models:
           SUM across all orders = true net revenue.
 
       - name: order_status
-        description: "{{ doc('order_status_definitions') }}"
+        description: order status as defined in Shopify (e.g., completed, refunded, cancelled, pending)
 
       - name: is_completed
         description: True when order_status = 'completed'
