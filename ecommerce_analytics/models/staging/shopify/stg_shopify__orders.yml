@@ -26,7 +26,45 @@ models:
     
     config:
       tags: ['staging', 'shopify', 'daily', 'finance']
-    
+
+    # ADD model-level financial logic tests
+    tests:
+      # Revenue must never be negative
+      - dbt_utils.expression_is_true:
+          expression: "revenue >= 0"
+          config:
+            severity: error
+
+      # Refund amount must never be negative
+      - dbt_utils.expression_is_true:
+          expression: "refund_amount >= 0"
+          config:
+            severity: error
+
+      # Gross amount must never be negative
+      - dbt_utils.expression_is_true:
+          expression: "gross_amount >= 0"
+          config:
+            severity: error
+
+      # An order cannot be both completed AND refunded simultaneously
+      - dbt_utils.expression_is_true:
+          expression: "not (is_completed and is_refunded)"
+          config:
+            severity: error
+
+      # Completed orders must have positive revenue
+      - dbt_utils.expression_is_true:
+          expression: "not (is_completed and revenue <= 0)"
+          config:
+            severity: error
+
+      # Refunded orders must have positive refund_amount
+      - dbt_utils.expression_is_true:
+          expression: "not (is_refunded and refund_amount <= 0)"
+          config:
+            severity: error
+
     columns:
       - name: order_id
         description: Unique identifier for each order (Shopify internal ID)
@@ -48,6 +86,14 @@ models:
         description: Timestamp when order was placed in Shopify (UTC)
         tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= '2023-01-01'::timestamp"
+              config:
+                severity: error
+          - dbt_utils.expression_is_true:
+              expression: "<= current_timestamp()"
+              config:
+                severity: error
 
       - name: order_date_day
         description: Date of order truncated to day
@@ -86,11 +132,19 @@ models:
         description: Absolute value of total_amount regardless of status. Always positive.
         tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                severity: error
 
       - name: revenue
         description: revenue contribution of the order. Equals total_amount for completed orders, else 0.
         tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                severity: error
 
       - name: refund_amount
         description: >
@@ -98,6 +152,10 @@ models:
           Always positive. Use for refund rate calculations.
         tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                severity: error
 
       - name: net_revenue_impact
         description: >
