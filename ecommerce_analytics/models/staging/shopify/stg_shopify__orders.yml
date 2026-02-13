@@ -1,0 +1,112 @@
+# models/staging/shopify/stg_shopify__orders.yml
+version: 2
+
+models:
+  - name: stg_shopify__orders
+    description: >
+      Staging model for Shopify order transactions with financial
+      metrics and status classification.
+      
+      **Source:** ECOMMERCE_RAW.SHOPIFY.ORDERS
+      
+      **Grain:** One row per order
+      
+      **Primary Key:** order_id
+      
+      **Transformations applied:**
+      - Added time dimensions (day, week, month, year, quarter)
+      - Derived revenue, refund_amount, and net_revenue_impact
+      - Added boolean status flags for clean downstream filtering
+      - Renamed columns for naming consistency
+      
+      **Important Note on total_amount:**
+      Refunded orders carry a negative total_amount in the source system.
+      Never use total_amount directly for revenue aggregations.
+      Always use revenue (completed only) or net_revenue_impact (net of refunds).
+    
+    config:
+      tags: ['staging', 'shopify', 'daily', 'finance']
+    
+    columns:
+      - name: order_id
+        description: Unique identifier for each order (Shopify internal ID)
+
+      - name: customer_id
+        description: Foreign key to stg_shopify__customers
+
+      - name: order_date
+        description: Timestamp when order was placed in Shopify (UTC)
+
+      - name: order_date_day
+        description: Date of order truncated to day
+
+      - name: order_date_week
+        description: Week start date (Monday) of the order
+
+      - name: order_date_month
+        description: Month start date of the order
+
+      - name: order_year
+        description: Year of the order (e.g., 2023, 2024)
+
+      - name: order_quarter
+        description: Quarter of the order (1-4)
+
+      - name: order_month
+        description: Month number of the order (1-12)
+
+      - name: order_day_of_week
+        description: Day of week number (0=Sunday, 6=Saturday in Snowflake)
+
+      - name: total_amount
+        description: >
+          Raw total order value in EUR from Shopify.
+          WARNING: Negative for refunded orders.
+          Use revenue or net_revenue_impact for all aggregations.
+
+      - name: gross_amount
+        description: Absolute value of total_amount regardless of status. Always positive.
+
+      - name: revenue
+        description: "{{ doc('revenue_recognition_logic') }}"
+
+      - name: refund_amount
+        description: >
+          Absolute value of refunded order amount, else 0.
+          Always positive. Use for refund rate calculations.
+
+      - name: net_revenue_impact
+        description: >
+          Revenue impact per order accounting for refunds.
+          Completed orders: positive. Refunded: negative. Others: 0.
+          SUM across all orders = true net revenue.
+
+      - name: order_status
+        description: "{{ doc('order_status_definitions') }}"
+
+      - name: is_completed
+        description: True when order_status = 'completed'
+
+      - name: is_refunded
+        description: True when order_status = 'refunded'
+
+      - name: is_cancelled
+        description: True when order_status = 'cancelled'
+
+      - name: is_pending
+        description: True when order_status = 'pending'
+
+      - name: is_financially_closed
+        description: True when order is completed or refunded
+
+      - name: is_active_order
+        description: True when order is not cancelled and not refunded
+
+      - name: order_created_at
+        description: Timestamp when order record was created in Shopify
+
+      - name: order_updated_at
+        description: Timestamp when order record was last updated in Shopify
+
+      - name: loaded_at_timestamp
+        description: Timestamp when data was loaded to Snowflake from source system
