@@ -2,8 +2,7 @@
 -- Minimal version - source connection and column renames only
 -- Add Date Dimension Columns 
 -- Add Financial Derived Columns
-
--- models/staging/shopify/stg_shopify__orders.sql
+-- Add Status Boolean Flags
 
 {{
     config(
@@ -70,6 +69,16 @@ renamed as (
         -- Order status
         status              as order_status,
 
+        -- Status boolean flags (avoids repeated CASE logic downstream)
+        (status = 'completed')                              as is_completed,
+        (status = 'refunded')                               as is_refunded,
+        (status = 'cancelled')                              as is_cancelled,
+        (status = 'pending')                                as is_pending,
+
+        -- Composite flags
+        (status in ('completed', 'refunded'))               as is_financially_closed,
+        (status not in ('cancelled', 'refunded'))           as is_active_order,
+
         -- Metadata
         created_at          as order_created_at,
         updated_at          as order_updated_at,
@@ -105,6 +114,14 @@ final as (
 
         -- Status
         order_status,
+
+        -- Status flags
+        is_completed,
+        is_refunded,
+        is_cancelled,
+        is_pending,
+        is_financially_closed,
+        is_active_order,
 
         -- Metadata
         order_created_at,
