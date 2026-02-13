@@ -3,6 +3,7 @@
 -- Add Date Dimension Columns 
 -- Add Financial Derived Columns
 -- Add Status Boolean Flags
+-- Add Refactored Script with Jinja Loop on Statuses 
 
 {{
     config(
@@ -10,6 +11,10 @@
         tags=['daily']
     )
 }}
+
+-- Single Point of Maintenance: If Shopify adds a new status like on_hold, you just add 'on_hold' to the list. dbt will automatically generate is_on_hold
+{% set order_status_values = ['completed', 'refunded', 'cancelled', 'pending'] %} 
+
 
 with source as (
 
@@ -69,11 +74,11 @@ renamed as (
         -- Order status
         status              as order_status,
 
-        -- Status boolean flags (avoids repeated CASE logic downstream)
-        (status = 'completed')                              as is_completed,
-        (status = 'refunded')                               as is_refunded,
-        (status = 'cancelled')                              as is_cancelled,
-        (status = 'pending')                                as is_pending,
+        -- 🟢 DYNAMIC STATUS FLAGS
+        -- Loops through the list defined at the top to create is_completed, is_refunded, etc.
+        {% for status_value in order_status_values %}
+        (status = '{{ status_value }}')                      as is_{{ status_value }},
+        {% endfor %}
 
         -- Composite flags
         (status in ('completed', 'refunded'))               as is_financially_closed,
@@ -116,10 +121,13 @@ final as (
         order_status,
 
         -- Status flags
-        is_completed,
-        is_refunded,
-        is_cancelled,
-        is_pending,
+        -- 🟢 DYNAMIC SELECTION 
+        -- Loops again to ensure these columns appear in your final table in the correct order without manually listing each one
+        {% for status_value in order_status_values %}
+
+        is_{{ status_value }},
+        {% endfor %}
+
         is_financially_closed,
         is_active_order,
 
