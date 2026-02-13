@@ -111,16 +111,26 @@ models:
         description: order status as defined in Shopify (e.g., completed, refunded, cancelled, pending)
         tests:
           - not_null
+          - accepted_values:
+              values: ['pending', 'completed', 'cancelled', 'refunded']
+              quote: true
+
 
       - name: is_completed
         description: True when order_status = 'completed'
         tests:
           - not_null
+          - accepted_values:
+              values: [true, false]
+
 
       - name: is_refunded
         description: True when order_status = 'refunded'
         tests:
           - not_null
+          - accepted_values:
+              values: [true, false]
+
 
       - name: is_cancelled
         description: True when order_status = 'cancelled'
@@ -131,16 +141,24 @@ models:
         description: True when order_status = 'pending'
         tests:
           - not_null
+          - accepted_values:
+              values: [true, false]
 
       - name: is_financially_closed
         description: True when order is completed or refunded
         tests:
           - not_null
+          - accepted_values:
+              values: [true, false]
+
 
       - name: is_active_order
         description: True when order is not cancelled and not refunded
         tests:
           - not_null
+          - accepted_values:
+              values: [true, false]
+
 
       - name: order_created_at
         description: Timestamp when order record was created in Shopify
