@@ -138,7 +138,7 @@ models:
                 severity: error
 
       - name: revenue
-        description: revenue contribution of the order. Equals total_amount for completed orders, else 0.
+        description: "{{ doc('revenue_recognition_logic') }}"
         tests:
           - not_null
           - dbt_utils.expression_is_true:
@@ -166,7 +166,7 @@ models:
           - not_null
 
       - name: order_status
-        description: order status as defined in Shopify (e.g., completed, refunded, cancelled, pending)
+        description: "{{ doc('order_status_definitions') }}"
         tests:
           - not_null
           - accepted_values:
