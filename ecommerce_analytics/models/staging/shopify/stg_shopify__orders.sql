@@ -1,4 +1,9 @@
 -- models/staging/shopify/stg_shopify__orders.sql
+-- Minimal version - source connection and column renames only
+-- Add Date Dimension Columns 
+-- Add Financial Derived Columns
+-- Add Status Boolean Flags
+-- Add Refactored Script with Jinja Loop on Statuses 
 
 {{
     config(
@@ -6,6 +11,10 @@
         tags=['daily']
     )
 }}
+
+-- Single Point of Maintenance: If Shopify adds a new status like on_hold, you just add 'on_hold' to the list. dbt will automatically generate is_on_hold
+{% set order_status_values = ['completed', 'refunded', 'cancelled', 'pending'] %} 
+
 
 with source as (
 
@@ -22,59 +31,113 @@ renamed as (
         -- Foreign keys
         customer_id,
 
-        -- Order attributes
+        -- Order timing (raw)
         order_date,
-        status as order_status,
-        total_amount as order_total,
 
-        -- Derived boolean flags
+        -- Order timing (derived)
+        cast(order_date as date)                            as order_date_day,
+        date_trunc('week', cast(order_date as date))        as order_date_week,
+        date_trunc('month', cast(order_date as date))       as order_date_month,
+        extract(year from order_date)                       as order_year,
+        extract(quarter from order_date)                    as order_quarter,
+        extract(month from order_date)                      as order_month,
+        extract(dayofweek from order_date)                  as order_day_of_week,
+
+        -- Order financials (raw)
+        total_amount,
+
+        -- Order financials (derived)
+        -- Gross amount: always positive regardless of status
+        abs(total_amount)                                   as gross_amount,
+
+        -- Revenue: only completed orders contribute revenue
         case
-            when status = 'completed' then true
-            else false
-        end as is_completed,
+            when status = 'completed'
+                then total_amount
+            else 0
+        end                                                 as revenue,
 
+        -- Refund amount: positive value for refunded orders only
         case
-            when status = 'cancelled' then true
-            else false
-        end as is_cancelled,
+            when status = 'refunded'
+                then abs(total_amount)
+            else 0
+        end                                                 as refund_amount,
 
-        case
-            when status = 'refunded' then true
-            else false
-        end as is_refunded,
-
-        case
-            when status = 'pending' then true
-            else false
-        end as is_pending,
-
-        -- Revenue calculations (only count completed orders)
+        -- Net revenue impact: completed positive, refunded negative, others 0
         case
             when status = 'completed' then total_amount
+            when status = 'refunded'  then total_amount
             else 0
-        end as order_revenue,
+        end                                                 as net_revenue_impact,
 
-        -- Refund amount (absolute value for refunded orders)
-        case
-            when status = 'refunded' then abs(total_amount)
-            else 0
-        end as refund_amount,
+        -- Order status
+        status              as order_status,
 
-        -- Order value categories
-        case
-            when abs(total_amount) < 50 then 'small'
-            when abs(total_amount) < 150 then 'medium'
-            when abs(total_amount) < 300 then 'large'
-            else 'very_large'
-        end as order_size_category,
+        -- 🟢 DYNAMIC STATUS FLAGS
+        -- Loops through the list defined at the top to create is_completed, is_refunded, etc.
+        {% for status_value in order_status_values %}
+        (status = '{{ status_value }}')                      as is_{{ status_value }},
+        {% endfor %}
 
-        -- Metadata timestamps
-        created_at as order_created_at,
-        updated_at as order_updated_at,
-        _loaded_at as loaded_at_timestamp
+        -- Composite flags
+        (status in ('completed', 'refunded'))               as is_financially_closed,
+        (status not in ('cancelled', 'refunded'))           as is_active_order,
+
+        -- Metadata
+        created_at          as order_created_at,
+        updated_at          as order_updated_at,
+        _loaded_at          as loaded_at_timestamp
 
     from source
 
+),
+
+final as (
+
+    select
+        -- Keys
+        order_id,
+        customer_id,
+
+        -- Time dimensions
+        order_date,
+        order_date_day,
+        order_date_week,
+        order_date_month,
+        order_year,
+        order_quarter,
+        order_month,
+        order_day_of_week,
+
+        -- Financials
+        total_amount,
+        gross_amount,
+        revenue,
+        refund_amount,
+        net_revenue_impact,
+
+        -- Status
+        order_status,
+
+        -- Status flags
+        -- 🟢 DYNAMIC SELECTION 
+        -- Loops again to ensure these columns appear in your final table in the correct order without manually listing each one
+        {% for status_value in order_status_values %}
+
+        is_{{ status_value }},
+        {% endfor %}
+
+        is_financially_closed,
+        is_active_order,
+
+        -- Metadata
+        order_created_at,
+        order_updated_at,
+        loaded_at_timestamp
+
+    from renamed
+
 )
 
-select * from renamed
+select * from final
