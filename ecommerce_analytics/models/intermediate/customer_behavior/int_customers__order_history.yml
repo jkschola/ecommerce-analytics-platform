@@ -1,0 +1,163 @@
+# models/intermediate/customer_behavior/int_customers__order_history.yml
+version: 2
+
+models:
+  - name: int_customers__order_history
+    description: >
+      Intermediate model aggregating complete order history per customer.
+      
+      **Source models:**
+      - stg_shopify__orders (aggregated)
+      
+      **Grain:** One row per customer_id
+      
+      **Primary Key:** customer_id
+      
+      **Purpose:** Reusable customer-level metrics consumed by:
+      - dim_customers (marts/core)
+      - Any future customer segmentation models
+      
+      **Key Business Logic:**
+      - Revenue: completed orders only
+      - Refund rate: total_refunds / total_revenue
+      - Customer segment: based on completed_orders + total_revenue
+      - Recency tier: based on days_since_last_order
+      
+      **Important Note on Date Metrics:**
+      days_since_last_order and days_as_customer use current_timestamp()
+      so values change daily. Snapshot this model if point-in-time
+      history is required.
+    
+    tests:
+      # completed_orders can never exceed total_orders
+      - dbt_utils.expression_is_true:
+          expression: "completed_orders <= total_orders"
+          config:
+            severity: error
+
+      # net_revenue = total_revenue - total_refunds
+      - dbt_utils.expression_is_true:
+          expression: "abs(net_revenue - (total_revenue - total_refunds)) < 0.01"
+          config:
+            severity: error
+
+      # VIP customers must have 5+ orders and 1000+ revenue
+      - dbt_utils.expression_is_true:
+          expression: >
+            customer_segment != 'vip'
+            or (completed_orders >= 5 and total_revenue >= 1000)
+          config:
+            severity: error
+
+    config:
+      tags: ['intermediate', 'customer_behavior', 'daily']
+    
+    columns:
+      - name: customer_id
+        description: Foreign key to stg_shopify__customers. One row per customer.
+        tests:
+          - unique
+          - not_null
+
+      - name: total_orders
+        description: Total number of orders placed (all statuses)
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+
+      - name: completed_orders
+        description: Number of successfully completed orders
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+
+      - name: refunded_orders
+        description: Number of refunded orders
+
+      - name: cancelled_orders
+        description: Number of cancelled orders
+
+      - name: pending_orders
+        description: Number of pending orders
+
+      - name: total_revenue
+        description: Sum of revenue from completed orders only (EUR)
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+
+      - name: total_refunds
+        description: Sum of refund amounts from refunded orders (EUR, always positive)
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+
+      - name: net_revenue
+        description: >
+          Net revenue impact: completed order revenue minus refunded amounts.
+          This is the true economic value of the customer.
+        tests:
+          - not_null
+
+      - name: avg_order_value
+        description: Average order value across completed orders (EUR, rounded to 2dp)
+
+      - name: refund_rate
+        description: >
+          Ratio of total_refunds to total_revenue.
+          NULL when total_revenue = 0 (no completed orders).
+          High refund rate (>20%) may indicate product quality issues.
+
+      - name: first_order_date
+        description: Timestamp of first completed order (NULL if no completed orders)
+
+      - name: last_order_date
+        description: Timestamp of most recent completed order
+
+      - name: days_between_first_and_last_order
+        description: Number of days between first and last completed order (customer lifespan)
+
+      - name: days_since_last_order
+        description: >
+          Days since most recent completed order as of current_timestamp().
+          Changes daily — do not use for point-in-time historical analysis.
+
+      - name: days_as_customer
+        description: Days since first completed order as of current_timestamp()
+
+      - name: is_repeat_customer
+        description: True when completed_orders > 1
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+
+      - name: is_active_customer
+        description: >
+          True when customer has completed at least one order AND that order was within the last 90 days.
+          False for customers with no completed orders (even if they have pending orders).
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+
+      - name: customer_segment
+        description: "{{ doc('customer_segment_logic') }}"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['no_purchases', 'one_time_low', 'one_time_high',
+                       'occasional', 'occasional_high_value', 'frequent', 'vip']
+              quote: true
+
+      - name: recency_tier
+        description: "{{ doc('recency_tier_logic') }}"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['never_purchased', 'active', 'warm', 'cooling', 'churned']
+              quote: true
