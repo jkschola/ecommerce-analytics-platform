@@ -28,6 +28,27 @@ models:
       so values change daily. Snapshot this model if point-in-time
       history is required.
     
+    tests:
+      # completed_orders can never exceed total_orders
+      - dbt_utils.expression_is_true:
+          expression: "completed_orders <= total_orders"
+          config:
+            severity: error
+
+      # net_revenue = total_revenue - total_refunds
+      - dbt_utils.expression_is_true:
+          expression: "abs(net_revenue - (total_revenue - total_refunds)) < 0.01"
+          config:
+            severity: error
+
+      # VIP customers must have 5+ orders and 1000+ revenue
+      - dbt_utils.expression_is_true:
+          expression: >
+            customer_segment != 'vip'
+            or (completed_orders >= 5 and total_revenue >= 1000)
+          config:
+            severity: error
+
     config:
       tags: ['intermediate', 'customer_behavior', 'daily']
     
@@ -40,9 +61,17 @@ models:
 
       - name: total_orders
         description: Total number of orders placed (all statuses)
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
 
       - name: completed_orders
         description: Number of successfully completed orders
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
 
       - name: refunded_orders
         description: Number of refunded orders
@@ -55,14 +84,24 @@ models:
 
       - name: total_revenue
         description: Sum of revenue from completed orders only (EUR)
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
 
       - name: total_refunds
         description: Sum of refund amounts from refunded orders (EUR, always positive)
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
 
       - name: net_revenue
         description: >
           Net revenue impact: completed order revenue minus refunded amounts.
           This is the true economic value of the customer.
+        tests:
+          - not_null
 
       - name: avg_order_value
         description: Average order value across completed orders (EUR, rounded to 2dp)
@@ -92,12 +131,31 @@ models:
 
       - name: is_repeat_customer
         description: True when completed_orders > 1
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
 
       - name: is_active_customer
         description: True when days_since_last_order <= 90
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
 
       - name: customer_segment
-        description: customer_segment_logic based on completed_orders and total_revenue
+        description: "{{ doc('customer_segment_logic') }}"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['no_purchases', 'one_time_low', 'one_time_high',
+                       'occasional', 'occasional_high_value', 'frequent', 'vip']
+              quote: true
 
       - name: recency_tier
-        description: recency_tier_logic based on days_since_last_order
+        description: "{{ doc('recency_tier_logic') }}"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['never_purchased', 'active', 'warm', 'cooling', 'churned']
+              quote: true
