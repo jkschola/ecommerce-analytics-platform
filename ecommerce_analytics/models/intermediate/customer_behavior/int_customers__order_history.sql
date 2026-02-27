@@ -73,17 +73,18 @@ with_lifecycle as (
             last_order_date
         )                                               as days_between_first_and_last_order,
 
+        -- Use configurable reference date for recency calculation to make testing easier
         datediff(
             'day',
             last_order_date,
-            current_timestamp()
-        )                                               as days_since_last_order,
+            {{ get_recency_reference_date() }}
+            )                                               as days_since_last_order,
 
         datediff(
             'day',
             first_order_date,
-            current_timestamp()
-        )                                               as days_as_customer
+            {{ get_recency_reference_date() }}
+            )                                               as days_as_customer
 
     from customer_orders
 
