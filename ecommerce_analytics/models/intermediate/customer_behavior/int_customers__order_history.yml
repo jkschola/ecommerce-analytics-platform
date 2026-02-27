@@ -137,7 +137,9 @@ models:
               values: [true, false]
 
       - name: is_active_customer
-        description: True when days_since_last_order <= 90
+        description: >
+          True when customer has completed at least one order AND that order was within the last 90 days.
+          False for customers with no completed orders (even if they have pending orders).
         tests:
           - not_null
           - accepted_values:
