@@ -113,7 +113,10 @@ with_segments as (
         (completed_orders > 1)                          as is_repeat_customer,
 
         -- Has customer bought in last 90 days? (active customer)
-        (days_since_last_order <= 90)                   as is_active_customer,
+        -- is_active_customer: TRUE only if customer has completed orders AND ordered recently
+
+        (last_order_date is not null
+        and days_since_last_order <= 90)                as is_active_customer,
 
         -- Customer value segment (see docs: customer_segment_logic)
         case
