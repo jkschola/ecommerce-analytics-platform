@@ -34,6 +34,9 @@ models:
     columns:
       - name: customer_id
         description: Foreign key to stg_shopify__customers. One row per customer.
+        tests:
+          - unique
+          - not_null
 
       - name: total_orders
         description: Total number of orders placed (all statuses)
