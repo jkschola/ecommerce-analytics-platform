@@ -30,3 +30,12 @@ models:
 # Temporarily remove vars and hooks to find the error
 vars:
   start_date: '2023-01-01'
+  end_date: '2024-12-31'
+
+  # Reference date for recency calculations
+  # In PROD: use current_timestamp()
+  # In DEV: use end of data range to make demo realistic
+  recency_reference_date: '2024-12-31'  
+  
+  # Default currency
+  default_currency: 'EUR'

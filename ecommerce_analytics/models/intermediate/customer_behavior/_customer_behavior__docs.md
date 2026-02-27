@@ -40,8 +40,23 @@ Customers are classified by days since their most recent completed order:
 | cooling | 91-180 days | Win-back campaign |
 | churned | 180+ days | Reactivation or suppress |
 
-**Note:** This metric uses current_timestamp() so values shift daily.
-For stable segmentation, use a snapshot or add a calculation date column.
+
+**Reference Date Configuration:**
+- **Development:** Uses {% raw %}{{ var('recency_reference_date') }}{% endraw %} for realistic
+  demo data (default: 2024-12-31, end of synthetic data range)
+- **Production:** Uses current_timestamp() for real-time recency
+
+To change the development reference date:
+```yaml
+# dbt_project.yml
+vars:
+  recency_reference_date: '2024-12-31'  # Adjust as needed
+```
+
+**Why this matters:**
+Static demo data with current_timestamp() makes all customers appear
+inactive. Configurable reference date maintains realistic distributions
+for portfolio demonstrations while production uses real-time values.
 
 **Combined with customer_segment for RFM targeting:**
 ```sql

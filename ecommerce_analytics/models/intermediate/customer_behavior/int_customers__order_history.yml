@@ -123,11 +123,22 @@ models:
 
       - name: days_since_last_order
         description: >
-          Days since most recent completed order as of current_timestamp().
-          Changes daily — do not use for point-in-time historical analysis.
+          Days since most recent completed order as of reference date.
+          
+          **Reference date:** 
+          - Development: {{ var('recency_reference_date') }} (configurable)
+          - Production: current_timestamp() (real-time)
+          
+          This ensures realistic recency metrics for demo data while
+          providing real-time values in production.
 
       - name: days_as_customer
-        description: Days since first completed order as of current_timestamp()
+        description: >
+          Days since first completed order as of reference date.
+
+          **Reference date:** 
+          - Development: {{ var('recency_reference_date') }} (configurable)
+          - Production: current_timestamp() (real-time)
 
       - name: is_repeat_customer
         description: True when completed_orders > 1
