@@ -34,8 +34,8 @@ models:
       - dbt_utils.expression_is_true:
           name: new_customer_flag_matches_tenure_logic
           expression: >
-            (days_from_signup_to_order <= 30 and is_new_customer_order = true)
-            or (days_from_signup_to_order > 30 and is_new_customer_order = false)
+            (days_from_signup_to_order <= {{ var('new_customer_window_days') }} and is_new_customer_order = true)
+            or (days_from_signup_to_order > {{ var('new_customer_window_days') }} and is_new_customer_order = false)
           config:
             severity: error
             error_if: ">0"
@@ -81,7 +81,7 @@ models:
 
       - name: is_new_customer_order
         description: >
-          True when order placed within 30 days of customer signup.
+          True when order placed within {{ var('new_customer_window_days') }} days of customer signup.
           Identifies first-time buyer behavior for acquisition analysis.
         tests:
           - not_null

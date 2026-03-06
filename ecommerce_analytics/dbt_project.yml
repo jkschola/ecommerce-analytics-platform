@@ -39,3 +39,6 @@ vars:
   
   # Default currency
   default_currency: 'EUR'
+
+  # Customer acquisition threshold (in days)
+  new_customer_window_days: 30 
