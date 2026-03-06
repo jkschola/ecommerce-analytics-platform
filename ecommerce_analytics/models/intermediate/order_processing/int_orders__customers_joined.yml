@@ -28,6 +28,18 @@ models:
     config:
       tags: ['intermediate', 'order_processing', 'daily']
     
+    # Model-level cross-column logic tests
+    tests:
+      # Validates mathematical consistency between derived columns
+      - dbt_utils.expression_is_true:
+          name: new_customer_flag_matches_tenure_logic
+          expression: >
+            (days_from_signup_to_order <= 30 and is_new_customer_order = true)
+            or (days_from_signup_to_order > 30 and is_new_customer_order = false)
+          config:
+            severity: error
+            error_if: ">0"
+
     columns:
       - name: order_id
         description: Primary key. Unique order identifier from Shopify.
