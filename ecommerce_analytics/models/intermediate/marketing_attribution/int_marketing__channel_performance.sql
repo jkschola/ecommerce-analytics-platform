@@ -110,13 +110,13 @@ joined as (
         a.blended_cpc,
         a.blended_cpa,
 
-        -- Is this a paid channel?
-        (s.traffic_channel = 'paid_advertising')   as is_paid_channel
+        -- Is this a paid channel? (uses variable)
+        (s.traffic_channel = '{{ var("paid_channel_name") }}')   as is_paid_channel
 
     from sessions_by_channel s
     left join ads_by_day a
         on  s.activity_date  = a.activity_date
-        and s.traffic_channel = 'paid_advertising'
+        and s.traffic_channel = '{{ var("paid_channel_name") }}'
 
 ),
 

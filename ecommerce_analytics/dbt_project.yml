@@ -42,3 +42,6 @@ vars:
 
   # Customer acquisition threshold (in days)
   new_customer_window_days: 30 
+
+  # Marketing channel configuration
+  paid_channel_name: 'paid_advertising'
