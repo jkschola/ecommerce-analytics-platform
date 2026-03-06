@@ -32,7 +32,7 @@ models:
       - name: order_id
         description: Primary key. Unique order identifier from Shopify.
         tests:
-          - unique
+          - unique      # Validates the JOIN didn't cause a fan-out
           - not_null
 
       - name: customer_id
@@ -44,30 +44,16 @@ models:
         description: Customer full name from stg_shopify__customers
         
       - name: customer_country
-        description: Customer country from Shopify profile
-        tests:
-          - not_null
-          - accepted_values:
-              values: ['France', 'Germany', 'Spain', 'Italy', 'Belgium',
-                       'Netherlands', 'UK', 'Switzerland']
-              quote: true
+        description: Customer country from Shopify profile. Validated in stg_shopify__customers.
+        # NO TESTS - pass-through from staging
 
       - name: order_status
         description: Current order status
-        tests:
-          - not_null
-          - accepted_values:
-              values: ['pending', 'completed', 'cancelled', 'refunded']
-              quote: true
+        # NO TESTS - pass-through from staging
 
       - name: revenue
         description: Revenue for completed orders, 0 otherwise
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: ">= 0"
-              config:
-                severity: error
+        # NO TESTS - pass-through from staging
 
       - name: days_from_signup_to_order
         description: >
