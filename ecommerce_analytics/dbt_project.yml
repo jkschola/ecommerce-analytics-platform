@@ -45,3 +45,7 @@ vars:
 
   # Marketing channel configuration
   paid_channel_name: 'paid_advertising'
+
+  # Spend reconciliation tolerance (in currency units)
+  # Allows for floating-point rounding in aggregations
+  spend_variance_tolerance: 0.01 

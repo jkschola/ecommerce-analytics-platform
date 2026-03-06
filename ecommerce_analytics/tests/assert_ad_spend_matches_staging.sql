@@ -32,7 +32,8 @@ variance_check as (
         abs(
             staging_spend.total_staging_spend 
             - intermediate_spend.total_intermediate_spend
-        ) as spend_variance
+        ) as spend_variance,
+        {{ var('spend_variance_tolerance') }} as tolerance
     from staging_spend
     cross join intermediate_spend
 
@@ -44,6 +45,6 @@ select
     spend_variance,
     'CRITICAL: Ad spend missing from intermediate model' as error_message
 from variance_check
--- Fail if we lost more than $0.01 in the aggregation
+-- Fail if we lost more than the tolerance in the aggregation
 -- (allows for minor floating point rounding differences)
-where spend_variance > 0.01
+where spend_variance > tolerance
