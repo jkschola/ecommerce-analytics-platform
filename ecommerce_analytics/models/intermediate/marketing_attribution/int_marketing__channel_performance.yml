@@ -90,11 +90,8 @@ models:
         description: Standardized traffic channel from GA sessions
         tests:
           - not_null
-          - accepted_values:
-              values: ['organic_search', 'paid_advertising', 'direct_traffic',
-                       'referral_traffic', 'social_media', 'other']
-              quote: true
-
+        # NO accepted_values test - validated in stg_google_analytics__sessions
+        
       - name: is_paid_channel
         description: True for paid_advertising channel only
         tests:
