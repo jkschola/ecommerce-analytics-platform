@@ -1,0 +1,95 @@
+# models/intermediate/marketing_attribution/int_marketing__channel_performance.yml
+version: 2
+
+models:
+  - name: int_marketing__channel_performance
+    description: >
+      Intermediate model unifying web session analytics and paid advertising
+      metrics at the daily channel level.
+      
+      **Source models:**
+      - stg_google_analytics__sessions (aggregated)
+      - stg_facebook_ads__ad_performance (aggregated, left joined)
+      
+      **Join type:** LEFT JOIN sessions to ads on (date + paid_advertising)
+      
+      **Grain:** One row per (activity_date, traffic_channel)
+      
+      **Primary Key:** (activity_date, traffic_channel)
+      
+      **Purpose:** Unified marketing performance view enabling cross-channel
+      comparison. Consumed by fct_marketing_performance mart.
+      
+      **Important Note on NULL Ad Metrics:**
+      total_impressions, total_spend, blended_ctr, blended_cpc, blended_cpa
+      are NULL for all non-paid channels. This is intentional.
+      Only paid_advertising channel has corresponding Facebook Ads data.
+    
+    config:
+      tags: ['intermediate', 'marketing_attribution', 'daily']
+    
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - activity_date
+            - traffic_channel
+          config:
+            severity: error
+
+      # Bounce rate must be between 0 and 1
+      - dbt_utils.expression_is_true:
+          expression: "bounce_rate between 0 and 1 or bounce_rate is null"
+          config:
+            severity: error
+
+      # Spend only exists for paid channel
+      - dbt_utils.expression_is_true:
+          expression: >
+            (is_paid_channel = true and total_spend is not null)
+            or (is_paid_channel = false and total_spend is null)
+          config:
+            severity: warn
+
+    columns:
+      - name: activity_date
+        description: Date of activity (session date or ad performance date)
+        tests:
+          - not_null
+
+      - name: traffic_channel
+        description: Standardized traffic channel from GA sessions
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['organic_search', 'paid_advertising', 'direct_traffic',
+                       'referral_traffic', 'social_media', 'other']
+              quote: true
+
+      - name: is_paid_channel
+        description: True for paid_advertising channel only
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+
+      - name: total_sessions
+        description: Total GA sessions for this channel on this date
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+
+      - name: bounce_rate
+        description: Bounced sessions / total sessions (0 to 1)
+        tests:
+          - not_null
+
+      - name: total_spend
+        description: >
+          Total Facebook Ads spend in EUR.
+          NULL for all non-paid channels — this is intentional.
+
+      - name: blended_cpa
+        description: >
+          Blended cost per acquisition: total_spend / total_conversions.
+          NULL for non-paid channels or when conversions = 0.
