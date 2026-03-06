@@ -87,7 +87,7 @@ models:
           - not_null
 
       - name: traffic_channel
-        description: Standardized traffic channel from GA sessions
+        description: "{{ doc('marketing_traffic_channels') }}"
         tests:
           - not_null
         # NO accepted_values test - validated in stg_google_analytics__sessions
@@ -100,21 +100,21 @@ models:
               values: [true, false]
 
       - name: total_sessions
-        description: Total GA sessions for this channel on this date
+        description: "{{ doc('ga_total_sessions') }}"
         tests:
           - not_null
           - dbt_utils.expression_is_true:
               expression: "> 0"
 
       - name: bounce_rate
-        description: Bounced sessions / total sessions (0 to 1)
+        description: "{{ doc('ga_bounce_rate') }}"
         tests:
           - not_null
 
       - name: total_spend
-        description: >
-          Total Facebook Ads spend in EUR.
-          NULL for all non-paid channels — this is intentional.
+        description: "{{ doc('fb_total_spend') }}"
+        # NO tests - NULL for non-paid channels (intentional)
+          
 
       - name: blended_cpa
         description: >
