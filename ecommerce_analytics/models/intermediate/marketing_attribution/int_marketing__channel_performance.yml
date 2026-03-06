@@ -3,34 +3,50 @@ version: 2
 
 models:
   - name: int_marketing__channel_performance
-    description: >
-      Intermediate model unifying web session analytics and paid advertising
-      metrics at the daily channel level.
+    description: |
+      Intermediate model unifying web session analytics and paid advertising metrics at the daily channel level.
       
-      **Source models:**
-      - stg_google_analytics__sessions (aggregated)
-      - stg_facebook_ads__ad_performance (aggregated, left joined)
+      ### Core Architecture
+      - **Source models:** `stg_google_analytics__sessions` and `stg_facebook_ads__ad_performance`
+      - **Join strategy:** LEFT JOIN sessions to ads on (date + paid channel)
+      - **Grain:** One row per (activity_date, traffic_channel)
+      - **Primary Key:** Composite (activity_date, traffic_channel)
       
-      **Join type:** LEFT JOIN sessions to ads on (date + paid_advertising)
+      ### Design Decisions
       
-      **Grain:** One row per (activity_date, traffic_channel)
+      1. **Asymmetric LEFT JOIN (Critical):**
+         Preserves all organic traffic channels even when no ad spend is present. 
+         *Risk:* If GA tracking breaks but ads keep spending, ad spend is orphaned. 
+         *Mitigation:* Singular test `assert_ad_spend_matches_staging.sql` actively monitors for dropped financial data.
       
-      **Primary Key:** (activity_date, traffic_channel)
+      2. **Configurable Channel Mapping:**
+         Paid channel name is abstracted via `var('paid_channel_name')`.
+         Default is 'paid_advertising'. To test alternate definitions without altering code:
+         `dbt run --vars '{paid_channel_name: "paid_social"}'`
       
-      **Design Decision — LEFT JOIN:**
-      We LEFT JOIN ads onto sessions to preserve all organic traffic channels.
-      However, this creates risk: if GA tracking fails but ads are still
-      spending, that spend will be orphaned (not appear in this model).
-      This is monitored via assert_ad_spend_matches_staging singular test.
+      3. **Explicit NULL Semantics:**
+         Ad metrics (impressions, clicks, spend, CTR, CPC, CPA) are `NULL` for non-paid channels. This is INTENTIONAL, not a bug. Only the `{{ var('paid_channel_name') }}` channel receives blended spend.
       
-      **Important Note on NULL Ad Metrics:**
-      total_impressions, total_spend, blended_ctr, blended_cpc, blended_cpa
-      are NULL for all non-paid channels. This is intentional and correct.
-      Only paid_advertising channel has corresponding Facebook Ads data.
+      4. **Pre-Join Aggregation (Simpson's Paradox Prevention):**
+         Both sources are aggregated BEFORE the join (not after). Sessions are grouped by date + channel; Ads are rolled up globally by date. This mathematically guarantees blended metrics use the safe `sum/sum` method rather than averaging pre-calculated rates.
+      
+      ### Testing Strategy & Data Contracts
+      
+      Deployed a 13-test observability matrix:
+      - **Model-level (6):** Cross-column reality checks (clicks ≤ impressions, bounces ≤ sessions), business rules (spend exclusively on paid channel), and composite PK uniqueness.
+      - **Column-level (6):** Non-null constraints and mathematical boundaries (bounce rate 0.0 to 1.0).
+      - **Singular (1):** Financial reconciliation (orphan spend detection).
+      
+      **Compute Optimization:**
+      Applied DRY testing principles by pruning 1 redundant `accepted_values` test. Traffic channel boundaries are validated at the point of origin (staging) to save warehouse compute.
+      
+      ### Downstream Consumers
+      - `fct_marketing_performance` (Marts layer)
+      - Any mart analyzing multi-channel top-of-funnel attribution.
     
     config:
       tags: ['intermediate', 'marketing_attribution', 'daily']
-    
+          
     tests:
       # Composite PK
       - dbt_utils.unique_combination_of_columns:
