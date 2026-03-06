@@ -8,43 +8,35 @@
 -- BUSINESS IMPACT: Without this test, we could silently lose thousands of dollars of ad spend from our reporting, 
 -- leading to incorrect ROAS calculations and bad business decisions.
 
+-- TOLERANCE: {{ var('spend_variance_tolerance') }} (configurable)
+-- To change: dbt test --vars '{spend_variance_tolerance: 0.10}'
+
 with staging_spend as (
-
-    select 
-        sum(spend) as total_staging_spend
+    select sum(spend) as total_staging_spend
     from {{ ref('stg_facebook_ads__ad_performance') }}
-
 ),
 
 intermediate_spend as (
-
-    select 
-        sum(total_spend) as total_intermediate_spend
+    select sum(total_spend) as total_intermediate_spend
     from {{ ref('int_marketing__channel_performance') }}
-
 ),
 
 variance_check as (
-
     select
         staging_spend.total_staging_spend,
         intermediate_spend.total_intermediate_spend,
-        abs(
-            staging_spend.total_staging_spend 
-            - intermediate_spend.total_intermediate_spend
-        ) as spend_variance,
+        abs(staging_spend.total_staging_spend 
+            - intermediate_spend.total_intermediate_spend) as spend_variance,
         {{ var('spend_variance_tolerance') }} as tolerance
     from staging_spend
     cross join intermediate_spend
-
 )
 
 select
     total_staging_spend,
     total_intermediate_spend,
     spend_variance,
-    'CRITICAL: Ad spend missing from intermediate model' as error_message
+    tolerance,
+    'CRITICAL: Ad spend variance exceeds tolerance' as error_message
 from variance_check
--- Fail if we lost more than the tolerance in the aggregation
--- (allows for minor floating point rounding differences)
 where spend_variance > tolerance
