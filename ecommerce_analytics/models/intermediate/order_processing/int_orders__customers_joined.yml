@@ -56,15 +56,15 @@ models:
         description: Customer full name from stg_shopify__customers
         
       - name: customer_country
-        description: Customer country from Shopify profile. Validated in stg_shopify__customers.
+        description: "{{ doc('customer_country_codes') }}"
         # NO TESTS - pass-through from staging
 
       - name: order_status
-        description: Current order status
+        description: "{{ doc('order_status_definitions') }}"
         # NO TESTS - pass-through from staging
 
       - name: revenue
-        description: Revenue for completed orders, 0 otherwise
+        description: "{{ doc('revenue_recognition_logic') }}"
         # NO TESTS - pass-through from staging
 
       - name: days_from_signup_to_order

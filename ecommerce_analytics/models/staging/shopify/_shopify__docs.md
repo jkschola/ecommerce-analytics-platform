@@ -61,3 +61,24 @@ order by 1
 - **is_financially_closed**: `completed` + `refunded`
 - Each order maps to exactly **one** TRUE status flag
 {% enddocs %}
+
+{% docs customer_country_codes %}
+## Customer Country Codes
+
+Supported European markets (ISO 3166-1 alpha-2):
+
+| Country | Code | Market Size |
+|---------|------|-------------|
+| France | FR | Large |
+| Germany | DE | Large |
+| Spain | ES | Large |
+| Italy | IT | Large |
+| Belgium | BE | Medium |
+| Netherlands | NL | Medium |
+| United Kingdom | GB | Large |
+| Switzerland | CH | Small |
+
+**Data Source:** Shopify customer profile → billing address country
+
+**Business Rule:** Only EU/UK markets supported. US/APAC orders rejected at checkout.
+{% enddocs %}
