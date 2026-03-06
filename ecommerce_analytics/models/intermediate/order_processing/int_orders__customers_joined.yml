@@ -1,0 +1,91 @@
+# models/intermediate/order_processing/int_orders__customers_joined.yml
+version: 2
+
+models:
+  - name: int_orders__customers_joined
+    description: >
+      Intermediate model enriching orders with customer attributes.
+      
+      **Source models:**
+      - stg_shopify__orders
+      - stg_shopify__customers
+      
+      **Join type:** INNER JOIN on customer_id
+      
+      **Grain:** One row per order_id
+      
+      **Primary Key:** order_id
+      
+      **Purpose:** Single reusable model providing order + customer context.
+      Consumed by fct_orders and any mart needing customer-sliced order analysis.
+      Eliminates repeated join logic across multiple marts (DRY principle).
+      
+      **Design Decision — Why INNER JOIN:**
+      We intentionally use INNER JOIN (not LEFT JOIN). All orders must have
+      a valid customer_id (enforced by FK test in stg_shopify__orders).
+      If row count drops below 25,000, it signals orphaned orders in source data.
+    
+    config:
+      tags: ['intermediate', 'order_processing', 'daily']
+    
+    columns:
+      - name: order_id
+        description: Primary key. Unique order identifier from Shopify.
+        tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: Foreign key to customers. Every order has a valid customer.
+        tests:
+          - not_null
+
+      - name: customer_full_name
+        description: Customer full name from stg_shopify__customers
+        
+      - name: customer_country
+        description: Customer country from Shopify profile
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['France', 'Germany', 'Spain', 'Italy', 'Belgium',
+                       'Netherlands', 'UK', 'Switzerland']
+              quote: true
+
+      - name: order_status
+        description: Current order status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pending', 'completed', 'cancelled', 'refunded']
+              quote: true
+
+      - name: revenue
+        description: Revenue for completed orders, 0 otherwise
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                severity: error
+
+      - name: days_from_signup_to_order
+        description: >
+          Days between customer account creation and order placement.
+          0 = ordered on signup day.
+          Enables new customer cohort analysis.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                severity: error
+
+      - name: is_new_customer_order
+        description: >
+          True when order placed within 30 days of customer signup.
+          Identifies first-time buyer behavior for acquisition analysis.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
