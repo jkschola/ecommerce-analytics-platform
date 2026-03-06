@@ -6,33 +6,63 @@ models:
     description: >
       Intermediate model enriching orders with customer attributes.
       
-      **Source models:**
-      - stg_shopify__orders
-      - stg_shopify__customers
-      
+      **Source models:** stg_shopify__orders, stg_shopify__customers
       **Join type:** INNER JOIN on customer_id
-      
       **Grain:** One row per order_id
-      
       **Primary Key:** order_id
       
       **Purpose:** Single reusable model providing order + customer context.
       Consumed by fct_orders and any mart needing customer-sliced order analysis.
       Eliminates repeated join logic across multiple marts (DRY principle).
       
-      **Design Decision — Why INNER JOIN:**
-      We intentionally use INNER JOIN (not LEFT JOIN). All orders must have
-      a valid customer_id (enforced by FK test in stg_shopify__orders).
-      If row count drops below 25,000, it signals orphaned orders in source data.
-    
+      **Design Decisions:**
+      
+      1. **INNER JOIN (not LEFT):** Enforces referential integrity.
+         If row count drops below stg_shopify__orders, signals orphaned orders.
+         Validated via singular test: assert_row_count_matches_orders.sql
+      
+      2. **DRY Testing:** Pass-through columns (customer_country, order_status,
+         revenue) are NOT re-tested here. Validated in staging layer only.
+         Eliminates duplicate compute and maintains clear failure attribution.
+      
+      3. **Cross-Column Validation:** Model-level test enforces mathematical
+         consistency between days_from_signup_to_order and is_new_customer_order.
+         Guarantees derived logic cannot drift.
+      
+      4. **Configurable Thresholds:** 'New customer' window is configurable
+         via var('new_customer_window_days'). Default: 30 days.
+         Change without code: dbt run --vars '{new_customer_window_days: 14}'
+      
+      **Testing Strategy:**
+      - Primary key integrity: unique + not_null on order_id
+      - Foreign key integrity: not_null on customer_id
+      - Join integrity: Row count must equal upstream orders
+      - Derived column validation: tenure >= 0, boolean values only
+      - Cross-column logic: Flag must match tenure threshold
+      
+      Total tests: 7 (was 12 before optimization)
+      Compute savings: 42% fewer test queries
+   
     config:
       tags: ['intermediate', 'order_processing', 'daily']
     
+    # Model-level cross-column logic tests
+    tests:
+      # Validates mathematical consistency between derived columns
+      - dbt_utils.expression_is_true:
+          name: new_customer_flag_matches_tenure_logic
+          expression: >
+            (days_from_signup_to_order <= {{ var('new_customer_window_days') }} and is_new_customer_order = true)
+            or (days_from_signup_to_order > {{ var('new_customer_window_days') }} and is_new_customer_order = false)
+          config:
+            severity: error
+            error_if: ">0"
+
     columns:
       - name: order_id
         description: Primary key. Unique order identifier from Shopify.
         tests:
-          - unique
+          - unique      # Validates the JOIN didn't cause a fan-out
           - not_null
 
       - name: customer_id
@@ -44,30 +74,16 @@ models:
         description: Customer full name from stg_shopify__customers
         
       - name: customer_country
-        description: Customer country from Shopify profile
-        tests:
-          - not_null
-          - accepted_values:
-              values: ['France', 'Germany', 'Spain', 'Italy', 'Belgium',
-                       'Netherlands', 'UK', 'Switzerland']
-              quote: true
+        description: "{{ doc('customer_country_codes') }}"
+        # NO TESTS - pass-through from staging
 
       - name: order_status
-        description: Current order status
-        tests:
-          - not_null
-          - accepted_values:
-              values: ['pending', 'completed', 'cancelled', 'refunded']
-              quote: true
+        description: "{{ doc('order_status_definitions') }}"
+        # NO TESTS - pass-through from staging
 
       - name: revenue
-        description: Revenue for completed orders, 0 otherwise
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: ">= 0"
-              config:
-                severity: error
+        description: "{{ doc('revenue_recognition_logic') }}"
+        # NO TESTS - pass-through from staging
 
       - name: days_from_signup_to_order
         description: >
@@ -83,7 +99,7 @@ models:
 
       - name: is_new_customer_order
         description: >
-          True when order placed within 30 days of customer signup.
+          True when order placed within {{ var('new_customer_window_days') }} days of customer signup.
           Identifies first-time buyer behavior for acquisition analysis.
         tests:
           - not_null

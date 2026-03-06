@@ -47,7 +47,7 @@ joined as (
                 'day',
                 customers.customer_created_at,
                 orders.order_date
-            ) <= 30
+            ) <= {{ var('new_customer_window_days') }}
         )                                           as is_new_customer_order,
 
         -- Order timing
