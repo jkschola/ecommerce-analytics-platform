@@ -34,6 +34,22 @@ joined as (
         customers.customer_country,
         customers.customer_created_at,
 
+        -- Customer tenure at time of order (Useful for new vs returning customer analysis)
+        datediff(
+            'day',
+            customers.customer_created_at,
+            orders.order_date
+        )                                           as days_from_signup_to_order,
+
+        -- Was this order placed within 30 days of signup?
+        (
+            datediff(
+                'day',
+                customers.customer_created_at,
+                orders.order_date
+            ) <= 30
+        )                                           as is_new_customer_order,
+
         -- Order timing
         orders.order_date,
         orders.order_date_day,
