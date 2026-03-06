@@ -17,18 +17,22 @@ models:
       
       **Primary Key:** (activity_date, traffic_channel)
       
-      **Purpose:** Unified marketing performance view enabling cross-channel
-      comparison. Consumed by fct_marketing_performance mart.
+      **Design Decision — LEFT JOIN:**
+      We LEFT JOIN ads onto sessions to preserve all organic traffic channels.
+      However, this creates risk: if GA tracking fails but ads are still
+      spending, that spend will be orphaned (not appear in this model).
+      This is monitored via assert_ad_spend_matches_staging singular test.
       
       **Important Note on NULL Ad Metrics:**
       total_impressions, total_spend, blended_ctr, blended_cpc, blended_cpa
-      are NULL for all non-paid channels. This is intentional.
+      are NULL for all non-paid channels. This is intentional and correct.
       Only paid_advertising channel has corresponding Facebook Ads data.
     
     config:
       tags: ['intermediate', 'marketing_attribution', 'daily']
     
     tests:
+      # Composite PK
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
             - activity_date
@@ -36,19 +40,45 @@ models:
           config:
             severity: error
 
-      # Bounce rate must be between 0 and 1
+      # Cross-column reality check: Ad clicks cannot exceed impressions
       - dbt_utils.expression_is_true:
-          expression: "bounce_rate between 0 and 1 or bounce_rate is null"
+          name: clicks_cannot_exceed_impressions
+          expression: >
+            total_ad_clicks <= total_impressions 
+            or total_ad_clicks is null 
+            or total_impressions is null
           config:
             severity: error
 
-      # Spend only exists for paid channel
+      # Cross-column reality check: Bounced sessions cannot exceed total sessions
       - dbt_utils.expression_is_true:
+          name: bounces_cannot_exceed_sessions
+          expression: "bounced_sessions <= total_sessions"
+          config:
+            severity: error
+
+      # Cross-column reality check: Engaged sessions cannot exceed total sessions
+      - dbt_utils.expression_is_true:
+          name: engaged_cannot_exceed_sessions
+          expression: "engaged_sessions <= total_sessions"
+          config:
+            severity: error
+
+      # Business logic: Spend should only exist for paid channel
+      - dbt_utils.expression_is_true:
+          name: spend_only_on_paid_channel
           expression: >
-            (is_paid_channel = true and total_spend is not null)
-            or (is_paid_channel = false and total_spend is null)
+            (traffic_channel = '{{ var("paid_channel_name") }}' and total_spend is not null)
+            or (traffic_channel != '{{ var("paid_channel_name") }}' and total_spend is null)
           config:
             severity: warn
+
+      # Bounce rate must be between 0 and 1
+      - dbt_utils.expression_is_true:
+          name: bounce_rate_valid_range
+          expression: "bounce_rate between 0 and 1 or bounce_rate is null"
+          config:
+            severity: error
 
     columns:
       - name: activity_date
