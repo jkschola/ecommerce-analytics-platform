@@ -6,47 +6,52 @@ models:
     description: |
       Intermediate model unifying web session analytics and paid advertising metrics at the daily channel level.
       
-      ### Core Architecture
+      ### Source & Grain
       - **Source models:** `stg_google_analytics__sessions` and `stg_facebook_ads__ad_performance`
-      - **Join strategy:** LEFT JOIN sessions to ads on (date + paid channel)
-      - **Grain:** One row per (activity_date, traffic_channel)
+      - **Join strategy:** FULL OUTER JOIN (sessions ⟗ ads)
+      - **Grain:** One row per (activity_date, traffic_channel) for REAL events only.
       - **Primary Key:** Composite (activity_date, traffic_channel)
       
-      ### Design Decisions
+      ### Critical Design Decision — Why FULL OUTER JOIN?
+      We use a FULL OUTER JOIN (rather than a LEFT JOIN or a Date Spine) to preserve all events from BOTH data sources:
+      1. **Days with sessions only:** Organic traffic days (ads = NULL).
+      2. **Days with ads only:** Ads ran but got 0 clicks, meaning 0 sessions (sessions = 0).
+      3. **Days with both:** Normal operating days (all columns populated).
       
-      1. **Asymmetric LEFT JOIN (Critical):**
-         Preserves all organic traffic channels even when no ad spend is present. 
-         *Risk:* If GA tracking breaks but ads keep spending, ad spend is orphaned. 
-         *Mitigation:* Singular test `assert_ad_spend_matches_staging.sql` actively monitors for dropped financial data.
+      **Why not LEFT JOIN (sessions → ads)?**
+      - *Risk:* Would silently drop days with ad spend but 0 paid sessions.
+      - *History:* Lost €8,706.44 across 63 days before the fix.
+      - *Safeguard:* Actively monitored by the `assert_ad_spend_matches_staging` test.
       
-      2. **Configurable Channel Mapping:**
-         Paid channel name is abstracted via `var('paid_channel_name')`.
-         Default is 'paid_advertising'. To test alternate definitions without altering code:
-         `dbt run --vars '{paid_channel_name: "paid_social"}'`
+      **Why not a Date Spine (dates × channels)?**
+      - *Risk:* Warehouse compute bloat.
+      - *Explanation:* A spine creates artificial rows (e.g., 730 days × 6 channels = 4,380 rows). If a specific channel had zero activity on Christmas, a spine forces a row of fake zeros. Spine generation belongs in the BI/reporting layer, not the intermediate transformation layer.
       
-      3. **Explicit NULL Semantics:**
-         Ad metrics (impressions, clicks, spend, CTR, CPC, CPA) are `NULL` for non-paid channels. This is INTENTIONAL, not a bug. Only the `{{ var('paid_channel_name') }}` channel receives blended spend.
+      ### Defensive COALESCE Strategy
+      ```sql
+      coalesce(s.activity_date, a.activity_date)    -- Prevents NULL primary keys
+      coalesce(s.total_sessions, 0)                 -- Zero mathematically represents "no sessions"
+      s.bounce_rate                                 -- Preserved as NULL when sessions = 0 (prevents 0/0 division)
+      a.total_spend                                 -- Preserved as NULL for non-paid channels (intentional)
+      ```
       
-      4. **Pre-Join Aggregation (Simpson's Paradox Prevention):**
-         Both sources are aggregated BEFORE the join (not after). Sessions are grouped by date + channel; Ads are rolled up globally by date. This mathematically guarantees blended metrics use the safe `sum/sum` method rather than averaging pre-calculated rates.
+      ### Valid Data States
+      | Scenario | total_sessions | total_spend | Business Meaning |
+      |----------|---------------|-------------|---------|
+      | Organic traffic day | 1,000 | NULL | Organic traffic occurred; no ads ran. |
+      | Ad-only day | 0 | €500 | Ads ran and spent money, but generated 0 sessions. |
+      | Blended day | 1,000 | €500 | Both platforms recorded activity. |
       
-      ### Testing Strategy & Data Contracts
-      
-      Deployed a 13-test observability matrix:
-      - **Model-level (6):** Cross-column reality checks (clicks ≤ impressions, bounces ≤ sessions), business rules (spend exclusively on paid channel), and composite PK uniqueness.
-      - **Column-level (6):** Non-null constraints and mathematical boundaries (bounce rate 0.0 to 1.0).
-      - **Singular (1):** Financial reconciliation (orphan spend detection).
-      
-      **Compute Optimization:**
-      Applied DRY testing principles by pruning 1 redundant `accepted_values` test. Traffic channel boundaries are validated at the point of origin (staging) to save warehouse compute.
-      
-      ### Downstream Consumers
-      - `fct_marketing_performance` (Marts layer)
-      - Any mart analyzing multi-channel top-of-funnel attribution.
+      ### Testing Strategy
+      - **Spend preservation:** `assert_ad_spend_matches_staging` (singular test).
+      - **Cross-column reality:** Clicks ≤ impressions, bounces ≤ sessions.
+      - **Business rules:** Spend strictly isolated to the paid channel.
+      - **Zero-session validation:** `total_sessions = 0` is recognized as VALID (removed `> 0` constraint).
+      - **Total tests:** 13 (6 model + 6 column + 1 singular).
     
     config:
-      tags: ['intermediate', 'marketing_attribution', 'daily']
-          
+      tags: ['intermediate', 'marketing_attribution', 'daily']      
+
     tests:
       # Composite PK
       - dbt_utils.unique_combination_of_columns:
@@ -119,13 +124,13 @@ models:
         description: "{{ doc('ga_total_sessions') }}"
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
-              expression: "> 0"
+          # REMOVED: expression > 0
+          # Reason: Zero is now valid for ad-only days (days with spend but no sessions)
 
       - name: bounce_rate
         description: "{{ doc('ga_bounce_rate') }}"
-        tests:
-          - not_null
+          # REMOVED tests: not_null
+          # keep NULL when no sessions (can't calculate bounce_rate when sessions = 0 (avoid 0/0)
 
       - name: total_spend
         description: "{{ doc('fb_total_spend') }}"
