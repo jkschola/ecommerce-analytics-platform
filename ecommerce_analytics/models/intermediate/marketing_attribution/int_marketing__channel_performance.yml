@@ -119,13 +119,13 @@ models:
         description: "{{ doc('ga_total_sessions') }}"
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
-              expression: "> 0"
+          # REMOVED: expression > 0
+          # Reason: Zero is now valid for ad-only days (days with spend but no sessions)
 
       - name: bounce_rate
         description: "{{ doc('ga_bounce_rate') }}"
-        tests:
-          - not_null
+          # REMOVED tests: not_null
+          # keep NULL when no sessions (can't calculate bounce_rate when sessions = 0 (avoid 0/0)
 
       - name: total_spend
         description: "{{ doc('fb_total_spend') }}"
