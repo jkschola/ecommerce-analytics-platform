@@ -88,20 +88,24 @@ ads_by_day as (
 joined as (
 
     select
-        s.activity_date,
-        s.traffic_channel,
+        -- Keys: COALESCE to handle orphaned rows from either side (Ensures no NULL dates or channels)
+        coalesce(s.activity_date, a.activity_date)      as activity_date,
+        coalesce(s.traffic_channel, '{{ var("paid_channel_name") }}') as traffic_channel,
 
-        -- Session metrics (all channels)
-        s.total_sessions,
-        s.unique_users,
-        s.total_page_views,
-        s.total_session_duration_seconds,
-        s.bounced_sessions,
-        s.engaged_sessions,
+        -- Session metrics: COALESCE to 0 when GA had no data for this date
+        -- (this handles ad-only days where sessions are truly zero)
+        coalesce(s.total_sessions, 0)                   as total_sessions,
+        coalesce(s.unique_users, 0)                     as unique_users,
+        coalesce(s.total_page_views, 0)                 as total_page_views,
+        coalesce(s.total_session_duration_seconds, 0)   as total_session_duration_seconds,
+        coalesce(s.bounced_sessions, 0)                 as bounced_sessions,
+        coalesce(s.engaged_sessions, 0)                 as engaged_sessions,
+        
+        -- Rate metrics: keep NULL when no sessions (can't calculate bounce_rate when sessions = 0 (avoid 0/0)
         s.bounce_rate,
         s.avg_session_duration_seconds,
 
-        -- Ad metrics (paid_advertising channel only, null for others)
+        -- Ad metrics: keep NULL for non-paid channels (intentional business logic)
         a.total_impressions,
         a.total_ad_clicks,
         a.total_spend,
@@ -110,11 +114,12 @@ joined as (
         a.blended_cpc,
         a.blended_cpa,
 
-        -- Is this a paid channel? (uses variable)
-        (s.traffic_channel = '{{ var("paid_channel_name") }}')   as is_paid_channel
+        -- Is this a paid channel?
+        (coalesce(s.traffic_channel, '{{ var("paid_channel_name") }}') 
+            = '{{ var("paid_channel_name") }}')         as is_paid_channel
 
     from sessions_by_channel s
-    left join ads_by_day a
+    full outer join ads_by_day a
         on  s.activity_date  = a.activity_date
         and s.traffic_channel = '{{ var("paid_channel_name") }}'
 
