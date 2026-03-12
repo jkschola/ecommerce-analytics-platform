@@ -2,7 +2,7 @@
 
 [![dbt](https://img.shields.io/badge/dbt-1.8.0+-orange.svg)](https://www.getdbt.com/)
 [![Snowflake](https://img.shields.io/badge/Snowflake-Ready-blue.svg)](https://www.snowflake.com/)
-[![Tests](https://img.shields.io/badge/Tests-116%20Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-138%20Passing-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **A production-grade analytics engineering project demonstrating modern data stack best practices with dbt 1.8+ and Snowflake.**
@@ -11,25 +11,25 @@
 
 Building a multi-source e-commerce analytics platform following Analytics Engineering best practices:
 - ✅ Medallion architecture (staging → intermediate → marts)
-- ✅ Comprehensive data quality framework (116+ tests)
+- ✅ Comprehensive data quality framework (138 tests)
 - ✅ Production-ready documentation with lineage
 - 🚧 CI/CD automation (in progress)
 - ✅ Model governance with data contracts
 
 ## 📊 Architecture & Data Flow
-```
+```text
 Raw Data (Snowflake)
     ↓
-Staging Layer (4 models) ✅ COMPLETE
+Staging Layer (4/4 models) ✅ COMPLETE
     ├── stg_shopify__customers
     ├── stg_shopify__orders
     ├── stg_google_analytics__sessions
     └── stg_facebook_ads__ad_performance
     ↓
-Intermediate Layer (1/3 models) 🚧 IN PROGRESS
-    └── int_customers__order_history ✅
-    ├── int_orders__customers_joined (planned)
-    └── int_marketing__channel_performance (planned)
+Intermediate Layer (3/3 models) ✅ COMPLETE
+    ├── int_customers__order_history ✅ COMPLETE
+    ├── int_marketing__channel_performance ✅ COMPLETE
+    └── int_orders__customers_joined ✅ COMPLETE
     ↓
 Marts Layer (0 models) 📅 PLANNED
     ├── Core: dim_customers, fct_orders
@@ -38,37 +38,34 @@ Marts Layer (0 models) 📅 PLANNED
 ```
 ```mermaid
 graph TD
-    A[Shopify Raw] --> B[stg_shopify__customers]
-    A --> C[stg_shopify__orders]
-    D[GA4 Raw] --> E[stg_google_analytics__sessions]
-    F[FB Ads Raw] --> G[stg_facebook_ads__ad_performance]
+    %% Define semantic, light/dark mode friendly classes
+    classDef raw fill:transparent,stroke:#58a6ff,stroke-width:2px;
+    classDef completed fill:#2ea0431a,stroke:#2ea043,stroke-width:2px;
+    classDef planned fill:transparent,stroke:#8b949e,stroke-width:2px,stroke-dasharray: 5 5;
+
+    %% Raw Sources
+    A[Shopify Raw]:::raw --> B[stg_shopify__customers]:::completed
+    A --> C[stg_shopify__orders]:::completed
+    D[GA4 Raw]:::raw --> E[stg_google_analytics__sessions]:::completed
+    F[FB Ads Raw]:::raw --> G[stg_facebook_ads__ad_performance]:::completed
     
-    C --> H[int_customers__order_history]
-    B --> I[int_orders__customers_joined]
+    %% Intermediate
+    C --> H[int_customers__order_history]:::completed
+    B --> I[int_orders__customers_joined]:::completed
     C --> I
     
-    E --> J[int_marketing__channel_performance]
+    E --> J[int_marketing__channel_performance]:::completed
     G --> J
     
-    H --> K[dim_customers]
-    I --> L[fct_orders]
-    J --> M[fct_marketing_performance]
-    
-    style B fill:#90EE90
-    style C fill:#90EE90
-    style E fill:#90EE90
-    style G fill:#90EE90
-    style H fill:#90EE90
-    style I fill:#FFE4B5
-    style J fill:#FFE4B5
-    style K fill:#E0E0E0
-    style L fill:#E0E0E0
-    style M fill:#E0E0E0
+    %% Marts
+    H --> K[dim_customers]:::planned
+    I --> L[fct_orders]:::planned
+    J --> M[fct_marketing_performance]:::planned
 ```
 
-## 🏗️ Current Status: Intermediate Models In Progress
+## 🏗️ Current Status: Intermediate Models Complete
 
-**Milestone:** Staging layer complete (93 tests passing), intermediate layer started (23 tests passing).
+**Milestone:** Staging layer complete (93 tests passing), intermediate layer complete (45 tests passing).
 
 ### Data Pipeline Progress
 
@@ -76,7 +73,7 @@ graph TD
 |-------|--------|-------|----------|--------|
 | **Sources** | 4 tables | 30+ | Source freshness | ✅ Configured |
 | **Staging** | 4/4 models | 93 | 100% documented | ✅ **Complete** |
-| **Intermediate** | 1/3 models | 23 | 100% documented | 🚧 **In Progress** |
+| **Intermediate** | 3/3 models | 45 | 100% documented | ✅ **Complete** |
 | **Marts** | 0/7 models | 0 | - | 📅 Planned |
 
 ### Layer Details
@@ -88,12 +85,12 @@ graph TD
 - `stg_facebook_ads__ad_performance` (25 tests)
 
 **Key Features:**
-- Column renaming for consistency
+- Column renaming for naming consistency
 - Data type standardization
 - Source freshness monitoring
-- Comprehensive generic tests
+- Configuration-as-code for dynamic taxonomy mapping
 
-#### 🚧 Intermediate Layer (In Progress)
+#### ✅ Intermediate Layer (Complete)
 - `int_customers__order_history` ✅ (23 tests)
   - Customer lifecycle metrics (first/last order, tenure)
   - Revenue aggregations (total, refunds, net)
@@ -101,31 +98,35 @@ graph TD
   - RFM recency classification
   - Configurable reference date for recency
 
-- `int_orders__customers_joined` 📅 (Planned)
-  - Orders enriched with customer attributes
+- `int_orders__customers_joined` ✅ (9 tests)
+  - Orders enriched with core customer attributes
+  - Order sequence calculation (identifying first-time vs. repeat orders)
+  - Dimensional denormalization to optimize downstream BI performance
   
-- `int_marketing__channel_performance` 📅 (Planned)
-  - Unified sessions + ads performance
+- `int_marketing__channel_performance` ✅ (13 tests)
+  - Unified web sessions + paid ads performance
+  - Event-driven `FULL OUTER JOIN` to rescue orphaned spend
+  - Custom financial reconciliation singular tests (`assert_ad_spend_matches_staging`)
 
 ## 📈 Data Sources
 
 | Source | Table | Records | Grain | Date Range |
 |--------|-------|---------|-------|------------|
-| **Shopify** | customers | 5,000 | One per customer | - |
-| **Shopify** | orders | 25,000 | One per order | 2023-2024 |
-| **Google Analytics** | sessions | 50,000 | One per session | 2023-2024 |
-| **Facebook Ads** | ad_performance | 36,500 | One per ad/day | 2023-2024 |
+| **Shopify** | `customers` | 5,000 | One per customer | All Time |
+| **Shopify** | `orders` | 25,000 | One per order | 2023-2024 |
+| **Google Analytics** | `sessions` | 50,000 | One per session | 2023-2024 |
+| **Facebook Ads** | `ad_performance` | 36,500 | One per ad/day | 2023-2024 |
 | **Total** | - | **116,500** | - | - |
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.10+
-- Snowflake account (30-day trial available)
-- Git
+- **Python 3.10+**
+- **Snowflake Account** (30-day free trial available)
+- **Git**
 
 ### Setup
-```powershell
+```bash
 # 1. Clone repository
 git clone https://github.com/jkschola/ecommerce-analytics-platform.git
 cd ecommerce-analytics-platform
@@ -153,7 +154,7 @@ dbt debug  # Verify connection
 # 6. Build models
 dbt run --select staging      # Build staging layer
 dbt run --select intermediate # Build intermediate layer
-dbt test                      # Run all tests (116 tests)
+dbt test                      # Run all tests (138 tests passing)
 
 # 7. View documentation
 dbt docs generate
@@ -163,17 +164,24 @@ dbt docs serve  # Opens at http://localhost:8080
 ## 📚 Tech Stack
 
 | Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
+| :--- | :--- | :--- | :--- |
 | **Data Warehouse** | Snowflake | Latest | Data storage & compute |
 | **Transformation** | dbt Core | 1.8.0+ | SQL transformation framework |
 | **Data Generation** | Python | 3.10+ | Synthetic data creation |
-| **Orchestration** | GitHub Actions | - | CI/CD automation (planned) |
-| **Version Control** | Git/GitHub | - | Code versioning & collaboration |
+| **Orchestration** | GitHub Actions | N/A | CI/CD automation (planned) |
+| **Version Control** | Git/GitHub | N/A | Code versioning & collaboration |
+
 
 ### dbt Packages
 ```yaml
-- dbt-labs/dbt_utils (1.1.1) - Advanced testing & macros
-- dbt-labs/codegen (0.12.1) - Documentation generation
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.1.1
+    # Purpose: Advanced testing & generic macros
+
+  - package: dbt-labs/codegen
+    version: 0.12.1
+    # Purpose: Base documentation and YAML generation
 ```
 
 ## 🎓 dbt Analytics Engineering Certification Coverage
@@ -181,91 +189,96 @@ dbt docs serve  # Opens at http://localhost:8080
 This project demonstrates mastery of all 8 certification exam topics:
 
 | Topic | Status | Evidence |
-|-------|--------|----------|
-| **1. Developing dbt models** | ✅ Complete | 5 models, clean DAG, DRY principles |
+| :--- | :--- | :--- |
+| **1. Developing dbt models** | ✅ Complete | 7 models, clean DAG, DRY principles, Jinja variables |
 | **2. Model governance** | 📅 Day 7 | Contracts, versioning, access control |
-| **3. Debugging errors** | ✅ Demonstrated | NULL handling fix, type mismatch fix |
+| **3. Debugging errors** | ✅ Demonstrated | NULL handling fix, orphaned spend recovery, compilation debugging |
 | **4. Managing pipelines** | 📅 Day 8 | Incremental models, snapshots |
-| **5. Implementing tests** | ✅ Complete | 116 tests (generic, custom, dbt_utils) |
-| **6. Documentation** | ✅ Complete | Full docs with lineage, doc blocks |
+| **5. Implementing tests** | ✅ Complete | 138 tests (generic, custom singular, dbt_utils) |
+| **6. Documentation** | ✅ Complete | Full docs with lineage, dynamic Jinja doc blocks |
 | **7. External dependencies** | ✅ Complete | Source freshness, exposures (planned) |
 | **8. Leveraging state** | 📅 Day 8-9 | State selectors, dbt retry |
 
 ### Key Certification Concepts Demonstrated
 
-- ✅ **Modularity & DRY:** Reusable customer segmentation logic in intermediate layer
-- ✅ **Testing Strategy:** 116 tests across sources, staging, and intermediate
-- ✅ **Clean DAGs:** 4 staging → 1 intermediate → marts (clear lineage)
-- ✅ **Source Configuration:** Freshness checks, loaded_at fields
-- ✅ **Documentation:** Doc blocks, column descriptions, model lineage
-- ✅ **Debugging:** NULL handling, type mismatches, YAML errors (documented in commits)
+- ✅ **Modularity & DRY:** Reusable customer segmentation logic, `dbt_project.yml` variables.
+- ✅ **Testing Strategy:** 138 tests across sources, staging, and intermediate layers.
+- ✅ **Clean DAGs:** 4 staging → 3 intermediate → marts (clear lineage).
+- ✅ **Source Configuration:** Freshness checks, `loaded_at` fields.
+- ✅ **Documentation:** Doc blocks, column descriptions, model lineage, ADRs.
+- ✅ **Debugging:** NULL handling, pipeline financial loss debugging, Jinja compilation errors.
 - 📅 **Model Contracts:** Coming in Day 7
 - 📅 **Incremental Models:** Coming in Day 5
 - 📅 **Snapshots:** Coming in Day 5
 
 ## 📅 Development Roadmap
 
-### ✅ Week 1: Foundation (Day 1-3)
+### ✅ Week 1: Foundation (Day 1-5)
 - [x] **Day 1:** Environment setup, source configuration, first staging model
 - [x] **Day 2:** Complete staging layer (4 models, 93 tests)
-- [x] **Day 3:** Start intermediate layer (customer order history) ← **You are here**
-- [ ] **Day 4:** Complete intermediate + start marts layer
-- [ ] **Day 5:** Incremental models + snapshots
+- [x] **Day 3:** Build intermediate layer part 1 (customer order history & joined orders)
+- [x] **Day 4:** Build intermediate layer part 2 (marketing attribution & configuration refactor) ← **You are here**
+- [ ] **Day 5:** Complete marts layer (dim & fct models)
 
 ### 📅 Week 2: Quality & Governance (Day 6-10)
 - [ ] **Day 6:** Advanced testing (dbt-expectations, custom tests)
 - [ ] **Day 7:** Model contracts and versioning (dbt 1.8 features)
 - [ ] **Day 8:** CI/CD with GitHub Actions (slim CI)
-- [ ] **Day 9:** Exposures and deployment workflow
+- [ ] **Day 9:** Incremental models and Snapshots
 - [ ] **Day 10:** Performance optimization + final polish
 
 ## 🔍 Quality Metrics
 
 ### Test Coverage
-```
-Total Tests: 116
+```text
+Total Tests: 138
 ├── Staging: 93 tests
 │   ├── unique/not_null: 42
 │   ├── relationships: 4
 │   ├── accepted_values: 25
 │   └── dbt_utils.expression_is_true: 22
-└── Intermediate: 23 tests
-    ├── unique/not_null: 14
+└── Intermediate: 45 tests
+    ├── unique/not_null: 24
     ├── accepted_values: 4
-    ├── expression_is_true (model-level): 3
-    └── expression_is_true (column-level): 2
+    ├── expression_is_true (model-level): 4
+    ├── expression_is_true (column-level): 12
+    └── singular (financial reconciliation): 1
 
 Pass Rate: 100%
 ```
 
 ### Documentation Coverage
-- **Models:** 5/5 (100%)
-- **Columns:** 106/106 (100%)
-- **Doc blocks:** 6 (revenue logic, order status, engagement levels, ad KPIs, customer segments, recency tiers)
+- **Models:** 7/7 (100%)
+- **Columns:** 120/120 (100%)
+- **Doc blocks:** 7 (revenue logic, order status, engagement levels, ad KPIs, customer segments, recency tiers, traffic taxonomy)
 
 ## 🛠️ Key Technical Decisions
 
-### 1. Configurable Reference Date for Recency
+### 1. Configuration-as-Code for Marketing Taxonomy
+**Problem:** Hardcoded UTM source strings inside staging SQL `CASE` statements created brittle pipelines susceptible to marketing tracking changes.
+
+**Solution:** Refactored taxonomy into `dbt_project.yml` variables, utilizing native Jinja `join` filters to dynamically compile YAML lists into valid SQL `IN` clauses, synchronizing tests and documentation automatically.
+
+### 2. Event-Driven FULL OUTER JOIN vs Cartesian Date Spine
+**Problem:** An asymmetric `LEFT JOIN` in the marketing intermediate model silently orphaned €8.7k in Facebook ad spend on days where GA web tracking recorded 0 sessions.
+
+**Solution:** Rejected a Cartesian date-spine approach to prevent an 83% spike in empty warehouse row generation. Implemented a `FULL OUTER JOIN` to rescue the orphaned spend while exclusively generating rows for real-world events.
+
+### 3. Configurable Reference Date for Recency
 **Problem:** Static demo data (ends 2024-12-31) + `current_timestamp()` = all customers appear inactive.
 
-**Solution:** Configurable `recency_reference_date` variable:
-```yaml
-# dbt_project.yml
-vars:
-  recency_reference_date: '2024-12-31'  # Dev: end of data range
-  # Production uses current_timestamp() automatically
-```
+**Solution:** Configurable `recency_reference_date` variable allows toggling between DEV mock dates and PROD real-time execution.
 
-### 2. NULL Handling in Customer Segmentation
-**Discovery:** 410 customers with orders but zero completed orders returned NULL for `is_active_customer`.
+### 4. NULL Handling in Customer Segmentation
+**Discovery:** Customers with zero completed orders returned `NULL` for `is_active_customer` instead of `false`.
 
-**Fix:** Explicit NULL handling in boolean logic:
+**Fix:** Implemented explicit defensive `COALESCE` and boolean `NULL` handling logic to guarantee absolute true/false states.
 ```sql
 (last_order_date is not null 
  and days_since_last_order <= 90) as is_active_customer
 ```
 
-### 3. Schema Naming Strategy
+### 5. Schema Naming Strategy
 Using dbt's custom schema feature: `DBT_DEV_STAGING`, `DBT_DEV_INTERMEDIATE`, `DBT_PROD_MARTS`
 
 **Benefits:**
@@ -275,10 +288,9 @@ Using dbt's custom schema feature: `DBT_DEV_STAGING`, `DBT_DEV_INTERMEDIATE`, `D
 
 ## 📖 Documentation
 
-- **dbt Docs:** Run `dbt docs serve` to view full lineage and documentation
+- **dbt Docs:** Run `dbt docs serve` to view full lineage and documentation.
+- **Architecture Decisions:** Tracked natively via PR descriptions and in-file ADRs.
 - **Setup Guides:** See `docs/snowflake_setup.md`
-- **Test Results:** See `docs/day1_test_results.md`
-- **Retrospectives:** Daily learnings in `docs/dayN_retrospective.md`
 
 ## 🤝 Contributing
 
@@ -295,5 +307,6 @@ This is a portfolio project demonstrating Analytics Engineering best practices. 
 ---
 
 **Project Status:** 🚧 Active Development 
-**Last Updated:** February 9, 2026  
-**Completion:** 40% (4/10 days)
+**Last Updated:** March 12, 2026  
+
+**Completion:** ~70% (Intermediate Layer Complete)
