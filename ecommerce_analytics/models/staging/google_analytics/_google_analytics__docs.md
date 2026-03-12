@@ -44,16 +44,13 @@ order by high_eng_sessions desc
 ## Traffic Channel Classification
 
 Traffic sources are grouped into standardized channels for consistent reporting. 
-This logic is configuration-driven via `dbt_project.yml`.
 
-| Configured Output Channel | Mapped Raw Sources |
-|---------------------------|--------------------|
-| **{{ var('channel_organic') }}** | {{ var('source_mapping_organic') | join(', ') }} |
-| **{{ var('paid_channel_name') }}** | {{ var('source_mapping_paid') | join(', ') }} |
-| **{{ var('channel_direct') }}** | {{ var('source_mapping_direct') | join(', ') }} |
-| **{{ var('channel_referral') }}** | {{ var('source_mapping_referral') | join(', ') }} |
-| **{{ var('channel_social') }}** | {{ var('source_mapping_social') | join(', ') }} |
-| **{{ var('channel_other') }}** | *Any unmapped source* |
+**🚨 Configuration-Driven Logic:**
+This taxonomy is dynamically driven by global variables. Do not rely on hardcoded SQL. 
 
-**Note:** `traffic_source` is normalized to lowercase before classification, so 'ORGANIC', 'Organic', and 'organic' all successfully map to the organic channel.
+Please refer to the `vars` section in `dbt_project.yml` for the exact, up-to-date mappings.
+* **Output Channels:** Defined by `channel_*` variables (e.g., `channel_organic`).
+* **Input UTM Mappings:** Defined by `source_mapping_*` lists (e.g., `source_mapping_organic`).
+
+**Note:** `traffic_source` is normalized to lowercase before classification, so 'ORGANIC', 'Organic', and 'organic' all successfully map to the organic channel bucket.
 {% enddocs %}
