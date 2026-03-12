@@ -43,17 +43,17 @@ order by high_eng_sessions desc
 {% docs traffic_channel_logic %}
 ## Traffic Channel Classification
 
-Traffic sources are grouped into standardized channels for consistent reporting.
+Traffic sources are grouped into standardized channels for consistent reporting. 
+This logic is configuration-driven via `dbt_project.yml`.
 
-| traffic_source | traffic_channel |
-|----------------|----------------|
-| organic | organic_search |
-| paid | paid_advertising |
-| direct | direct_traffic |
-| referral | referral_traffic |
-| social | social_media |
-| anything else | other |
+| Configured Output Channel | Mapped Raw Sources |
+|---------------------------|--------------------|
+| **{{ var('channel_organic') }}** | {{ var('source_mapping_organic') | join(', ') }} |
+| **{{ var('paid_channel_name') }}** | {{ var('source_mapping_paid') | join(', ') }} |
+| **{{ var('channel_direct') }}** | {{ var('source_mapping_direct') | join(', ') }} |
+| **{{ var('channel_referral') }}** | {{ var('source_mapping_referral') | join(', ') }} |
+| **{{ var('channel_social') }}** | {{ var('source_mapping_social') | join(', ') }} |
+| **{{ var('channel_other') }}** | *Any unmapped source* |
 
-**Note:** traffic_source is normalized to lowercase before classification,
-so 'ORGANIC', 'Organic', and 'organic' all map to 'organic_search'.
+**Note:** `traffic_source` is normalized to lowercase before classification, so 'ORGANIC', 'Organic', and 'organic' all successfully map to the organic channel.
 {% enddocs %}

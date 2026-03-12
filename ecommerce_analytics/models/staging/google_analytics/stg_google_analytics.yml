@@ -120,12 +120,11 @@ models:
               values: [true, false]
         
       - name: traffic_source
-        description: Traffic source normalized to lowercase (organic, paid, direct, referral, social)
+        description: Raw traffic source normalized to lowercase (e.g., organic, cpc, tiktok)
         tests:
           - not_null
-          - accepted_values:
-              values: ['organic', 'paid', 'direct', 'referral', 'social']
-              quote: true
+          # Removed accepted_values. UTM sources are highly volatile. 
+          # Unknown sources are safely caught by the traffic_channel 'other' bucket.
           
       - name: traffic_medium
         description: Traffic medium normalized to lowercase (google, facebook, email, etc.)
@@ -138,18 +137,23 @@ models:
         tests:
             - not_null
             - accepted_values:
-                values: ['organic_search', 'paid_advertising', 'direct_traffic', 'referral_traffic', 'social_media', 'other']
-                quote: true
+                values: 
+                  - "{{ var('channel_organic') }}"
+                  - "{{ var('paid_channel_name') }}"
+                  - "{{ var('channel_direct') }}"
+                  - "{{ var('channel_referral') }}"
+                  - "{{ var('channel_social') }}"
+                  - "{{ var('channel_other') }}"
         
       - name: is_paid_traffic
-        description: Boolean flag. True when traffic_source = 'paid'.
+        description: Boolean flag. True when traffic_source is found in the `source_mapping_paid` configuration list.
         tests:
           - not_null
           - accepted_values:
               values: [true, false]
         
       - name: is_organic_traffic
-        description: Boolean flag. True when traffic_source = 'organic'.
+        description: Boolean flag. True when traffic_source is found in the `source_mapping_organic` configuration list.
         tests:
           - not_null
           - accepted_values:
