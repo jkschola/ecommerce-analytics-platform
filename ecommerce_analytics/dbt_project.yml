@@ -43,9 +43,25 @@ vars:
   # Customer acquisition threshold (in days)
   new_customer_window_days: 30 
 
-  # Marketing channel configuration
-  paid_channel_name: 'paid_advertising'
-
   # Spend reconciliation tolerance (in currency units)
   # Allows for floating-point rounding in aggregations
-  spend_variance_tolerance: 0.01 
+  spend_variance_tolerance: 0.01
+
+  # ----------------------------------------
+  # Marketing Channel Taxonomy Configuration
+  # ----------------------------------------
+  
+  # 1. Output channel names (what the business sees)
+  channel_organic: 'organic_search'
+  paid_channel_name: 'paid_advertising'  # Keeping our existing var for intermediate compatibility
+  channel_direct: 'direct_traffic'
+  channel_referral: 'referral_traffic'
+  channel_social: 'social_media'
+  channel_other: 'other'
+
+  # 2. Input source mappings (raw UTM values -> channels)
+  source_mapping_organic: ['organic', 'seo']
+  source_mapping_paid: ['paid', 'cpc', 'ppc', 'adwords']
+  source_mapping_direct: ['direct', '(direct)']
+  source_mapping_referral: ['referral']
+  source_mapping_social: ['social', 'facebook', 'instagram', 'linkedin', 'twitter']

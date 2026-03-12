@@ -43,17 +43,14 @@ order by high_eng_sessions desc
 {% docs traffic_channel_logic %}
 ## Traffic Channel Classification
 
-Traffic sources are grouped into standardized channels for consistent reporting.
+Traffic sources are grouped into standardized channels for consistent reporting. 
 
-| traffic_source | traffic_channel |
-|----------------|----------------|
-| organic | organic_search |
-| paid | paid_advertising |
-| direct | direct_traffic |
-| referral | referral_traffic |
-| social | social_media |
-| anything else | other |
+**🚨 Configuration-Driven Logic:**
+This taxonomy is dynamically driven by global variables. Do not rely on hardcoded SQL. 
 
-**Note:** traffic_source is normalized to lowercase before classification,
-so 'ORGANIC', 'Organic', and 'organic' all map to 'organic_search'.
+Please refer to the `vars` section in `dbt_project.yml` for the exact, up-to-date mappings.
+* **Output Channels:** Defined by `channel_*` variables (e.g., `channel_organic`).
+* **Input UTM Mappings:** Defined by `source_mapping_*` lists (e.g., `source_mapping_organic`).
+
+**Note:** `traffic_source` is normalized to lowercase before classification, so 'ORGANIC', 'Organic', and 'organic' all successfully map to the organic channel bucket.
 {% enddocs %}

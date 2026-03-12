@@ -74,19 +74,24 @@ renamed as (
         lower(medium)   as traffic_medium,
         campaign        as campaign_name,
 
-        -- Traffic classification
+        -- Traffic classification (Configuration-Driven via dbt_project.yml)
         case
-            when lower(source) = 'organic'                          then 'organic_search'
-            when lower(source) = 'paid'                             then 'paid_advertising'
-            when lower(source) = 'direct'                           then 'direct_traffic'
-            when lower(source) = 'referral'                         then 'referral_traffic'
-            when lower(source) = 'social'                           then 'social_media'
-            else                                                         'other'
-        end                                                         as traffic_channel,
+            when lower(source) in ('{{ var("source_mapping_organic") | join("', '") }}')
+                then '{{ var("channel_organic") }}'
+            when lower(source) in ('{{ var("source_mapping_paid") | join("', '") }}')
+                then '{{ var("paid_channel_name") }}'
+            when lower(source) in ('{{ var("source_mapping_direct") | join("', '") }}')
+                then '{{ var("channel_direct") }}'
+            when lower(source) in ('{{ var("source_mapping_referral") | join("', '") }}')
+                then '{{ var("channel_referral") }}'
+            when lower(source) in ('{{ var("source_mapping_social") | join("', '") }}')
+                then '{{ var("channel_social") }}'
+            else '{{ var("channel_other") }}'
+        end as traffic_channel,
 
-        -- Traffic flags
-        (lower(source) = 'paid')                                    as is_paid_traffic,
-        (lower(source) = 'organic')                                 as is_organic_traffic,
+        -- Traffic flags (Configuration-Driven)
+        (lower(source) in ('{{ var("source_mapping_paid") | join("', '") }}'))    as is_paid_traffic,
+        (lower(source) in ('{{ var("source_mapping_organic") | join("', '") }}')) as is_organic_traffic,
 
         -- Metadata
         _loaded_at      as loaded_at_timestamp
