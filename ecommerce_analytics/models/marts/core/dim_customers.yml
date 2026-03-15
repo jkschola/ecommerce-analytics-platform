@@ -1,0 +1,228 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: >
+      Customer dimension table with pre-aggregated lifetime metrics.
+      
+      **Purpose:** Single source of truth for customer analysis leveraging
+      pre-computed aggregations from the intermediate layer.
+      
+      **Grain:** One row per customer_id
+      
+      **Materialization:** Table (Type 1 SCD - current state only)
+      
+      **Architecture Pattern:**
+      This dimension uses the customer-grain intermediate layer
+      (`int_customers__order_history`) instead of re-aggregating from facts.
+      
+      **Why this architecture:**
+      - Intermediate layer handles aggregation (proper separation of concerns).
+      - Dimension adds presentation logic (flags, display formats).
+      - No duplicate aggregation logic (DRY principle).
+      - Single source of truth for customer metrics.
+      
+      **Type 1 SCD Decision:**
+      - Tracks: Current customer state only.
+      - Does NOT track: Historical changes (email, country updates).
+      - Business need: 'Who is this customer TODAY?'
+    
+    config:
+      tags: ['daily', 'core', 'dimension']
+    
+    # LEAD AE FIX: Removed redundant model-level grain test
+    
+    columns:
+      # Primary key
+      - name: customer_id
+        description: Primary key. Unique identifier for each customer.
+        tests:
+          - unique
+          - not_null
+      
+      # Customer attributes
+      - name: customer_full_name
+        description: Customer's full name (from staging).
+        tests:
+          - not_null
+      
+      - name: customer_email
+        description: Customer's email address (validated in staging).
+        tests:
+          - not_null
+      
+      - name: customer_country
+        description: Customer's country (validated in staging).
+        tests:
+          - not_null
+      
+      - name: customer_created_at
+        description: Account creation timestamp (from staging).
+        tests:
+          - not_null
+      
+      # Derived temporal
+      - name: account_age_days
+        description: Days since account creation (as of {{ var('recency_reference_date') }}).
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      # Lifetime metrics (from intermediate)
+      - name: lifetime_orders
+        description: Total order count (all statuses).
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: completed_orders
+        description: Count of successfully completed orders.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: refunded_orders
+        description: Count of refunded orders.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: cancelled_orders
+        description: Count of cancelled orders.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: pending_orders
+        description: Count of pending orders.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      # Revenue metrics
+      - name: lifetime_revenue
+        description: Sum of all completed order revenue.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: total_refunds
+        description: Sum of all refund amounts.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: net_revenue
+        description: Net revenue after refunds.
+        tests:
+          - not_null
+      
+      - name: avg_order_value
+        description: Average revenue per completed order.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: refund_rate
+        description: Refund amount / total revenue (0-1 range).
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "between 0 and 1"
+      
+      # Temporal metrics
+      - name: first_order_date
+        description: Date of first completed order. NULL for customers who never ordered.
+      
+      - name: last_order_date
+        description: Date of most recent completed order. NULL for customers who never ordered.
+      
+      - name: days_between_first_and_last_order
+        description: Days from first to last order (customer lifespan). NULL for one-time buyers.
+      
+      - name: days_since_last_order
+        description: Days from last order to {{ var('recency_reference_date') }}. NULL for non-buyers.
+      
+      - name: days_as_customer
+        description: Days from first order to {{ var('recency_reference_date') }}. NULL for non-buyers.
+      
+      # Behavioral flags (from intermediate)
+      - name: is_repeat_customer
+        description: True if customer has more than 1 completed order.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: is_active_customer
+        description: True if customer ordered within last {{ var('recent_order_days', 90) }} days.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      # Segments (from intermediate)
+      - name: customer_segment
+        description: Customer value segment based on order count and revenue.
+        tests:
+          - not_null
+          - accepted_values:
+              # LEAD AE FIX: Updated to match our SQL coalesce fallback
+              values: 
+                - 'vip'
+                - 'frequent'
+                - 'occasional_high_value'
+                - 'occasional'
+                - 'one_time_high'
+                - 'one_time_low'
+                - 'no_purchases'
+      
+      - name: recency_tier
+        description: Recency tier based on days since last order.
+        tests:
+          - not_null
+          - accepted_values:
+              # LEAD AE FIX: Updated to match our SQL coalesce fallback
+              values:
+                - 'active'
+                - 'warm'
+                - 'cooling'
+                - 'churned'
+                - 'never_purchased'
+      
+      # Presentation-layer flags
+      - name: is_high_value_customer
+        description: >
+          True if lifetime revenue >= €{{ var('high_value_customer_threshold') }}.
+          VIP customers eligible for premium treatment.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: is_at_risk_customer
+        description: >
+          True if last order was between {{ var('at_risk_threshold_days') }} and {{ var('churn_threshold_days') }} days ago.
+          Prime candidates for win-back campaigns.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: is_churned_customer
+        description: >
+          True if no order in > {{ var('churn_threshold_days') }} days.
+          Requires reactivation efforts.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
