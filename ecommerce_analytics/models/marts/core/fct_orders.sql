@@ -18,6 +18,20 @@ with orders as (
 
 ),
 
+-- FIX: Calculate base metrics once to keep the final CTE DRY
+metrics_staging as (
+
+    select 
+        *,
+        datediff(
+            'day',
+            cast(order_date as date),
+            '{{ var("recency_reference_date") }}'
+        ) as days_since_order
+    from orders
+
+),
+
 final as (
 
     select
@@ -57,48 +71,22 @@ final as (
         (order_status = 'completed')                    as is_completed_order,
 
         -- Recent order: Within last 90 days from reference date
-        (
-            datediff(
-                'day',
-                cast(order_date as date),
-                '{{ var("recency_reference_date") }}'
-            ) <= 90
-        )                                               as is_recent_order
+        (days_since_order <= 90)                        as is_recent_order,
 
         -- Recency Metrics
         -- Days since order (from reference date)
-        datediff(
-            'day',
-            cast(order_date as date),
-            '{{ var("recency_reference_date") }}'
-        )                                               as days_since_order,
+        days_since_order,
 
         -- Order age category (for cohort analysis)
         case
-            when datediff(
-                'day',
-                cast(order_date as date),
-                '{{ var("recency_reference_date") }}'
-            ) <= 30                                     then '0-30 days'
-            when datediff(
-                'day',
-                cast(order_date as date),
-                '{{ var("recency_reference_date") }}'
-            ) <= 90                                     then '31-90 days'
-            when datediff(
-                'day',
-                cast(order_date as date),
-                '{{ var("recency_reference_date") }}'
-            ) <= 180                                    then '91-180 days'
-            when datediff(
-                'day',
-                cast(order_date as date),
-                '{{ var("recency_reference_date") }}'
-            ) <= 365                                    then '181-365 days'
-            else                                             '365+ days'
+            when days_since_order <= 30    then '1. 0-30 days'
+            when days_since_order <= 90    then '2. 31-90 days'
+            when days_since_order <= 180   then '3. 91-180 days'
+            when days_since_order <= 365   then '4. 181-365 days'
+            else                                '5. 365+ days'
         end                                             as order_age_category
 
-    from orders
+    from metrics_staging
 
 )
 
