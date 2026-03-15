@@ -1,0 +1,180 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: >
+      Fact table for order-level transaction analysis.
+      
+      **Purpose:** Single source of truth for order data with embedded
+      customer dimensions for fast BI tool queries.
+      
+      **Grain:** One row per order_id
+      
+      **Materialization:** Table (rebuilt nightly)
+      
+      **Design Pattern:** Denormalized fact table
+      - Customer attributes embedded (no joins for basic analysis)
+      - Time dimensions pre-computed (day/week/month/quarter/year)
+      - Business logic flags pre-calculated (high-value, completed, recent)
+      - Recency metrics ready for temporal analysis
+      
+      **Source:** `int_orders__customers_joined`
+      
+      **Key Metrics Available:**
+      - Revenue analysis (total, average, by segment)
+      - Customer behavior (new vs returning, tenure patterns)
+      - Temporal trends (daily/weekly/monthly aggregations)
+      - Cohort analysis (order age categories)
+      
+      **Typical Queries:**
+      ```sql
+      -- Revenue for recent orders
+      SELECT SUM(revenue) FROM fct_orders WHERE is_recent_order = true;
+      
+      -- High-value orders by customer
+      SELECT customer_id, COUNT(*) FROM fct_orders 
+      WHERE is_high_value_order = true GROUP BY 1;
+      
+      -- Monthly revenue trend
+      SELECT order_date_month, SUM(revenue) FROM fct_orders 
+      GROUP BY 1 ORDER BY 1;
+      ```
+    
+    config:
+      tags: ['daily', 'core', 'fact_table']
+    
+    columns:
+      # Keys
+      - name: order_id
+        description: Primary key. Unique identifier for each order.
+        tests:
+          - unique
+          - not_null
+      
+      - name: customer_id
+        description: Foreign key to dim_customers. Links order to customer.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_shopify__customers')
+              field: customer_id
+              config:
+                severity: warn  # Warn not error (orphaned orders might exist)
+      
+      # Order attributes
+      - name: order_status
+        description: Current status of the order (validated upstream).
+        tests:
+          - not_null
+      
+      - name: revenue
+        description: Revenue for completed orders, 0 for others.
+        tests:
+          - not_null
+      
+      # Customer dimensions (denormalized)
+      - name: customer_full_name
+        description: Customer's full name for reporting.
+        tests:
+          - not_null
+      
+      - name: customer_country
+        description: Customer's country (validated upstream).
+        tests:
+          - not_null
+      
+      # Time dimensions
+      - name: order_date
+        description: Raw order timestamp.
+        tests:
+          - not_null
+      
+      - name: order_date_day
+        description: Order date truncated to day (YYYY-MM-DD).
+        tests:
+          - not_null
+      
+      - name: order_date_week
+        description: Order date truncated to week (Monday start).
+        tests:
+          - not_null
+      
+      - name: order_date_month
+        description: Order date truncated to month (first day of month).
+        tests:
+          - not_null
+      
+      - name: order_date_quarter
+        description: Order date truncated to quarter (Q1/Q2/Q3/Q4).
+        tests:
+          - not_null
+      
+      - name: order_date_year
+        description: Order date truncated to year.
+        tests:
+          - not_null
+      
+      # Customer tenure
+      - name: days_from_signup_to_order
+        description: Days between customer signup and order placement.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: is_new_customer_order
+        description: >
+          True if order placed within {{ var('new_customer_window_days') }} 
+          days of signup.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      # Business logic flags
+      - name: is_high_value_order
+        description: >
+          True if order revenue >= €{{ var('high_value_threshold') }}.
+          Identifies premium transactions for retention analysis.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: is_completed_order
+        description: >
+          True if order status is 'completed'.
+          Use for revenue analysis (filters out pending/cancelled).
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: is_recent_order
+        description: >
+          True if order placed within {{ var('recent_order_days') }} days of {{ var('recency_reference_date') }}.
+          Identifies active customer orders.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      # Recency metrics
+      - name: days_since_order
+        description: >
+          Days from order_date to {{ var('recency_reference_date') }}.
+          Use for sliding window analysis (last N days).
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: order_age_category
+        description: >
+          Order age bucket (e.g., 0-30 days, 31-90 days). Prefixed with numbers to ensure proper BI tool sorting.
+          Pre-computed for cohort analysis.
+        tests:
+          - not_null
+          - accepted_values:
+              # Synchronized strings to match the BI-safe prefixed outputs
+              values: ['1. 0-30 days', '2. 31-90 days', '3. 91-180 days', '4. 181-365 days', '5. 365+ days']
