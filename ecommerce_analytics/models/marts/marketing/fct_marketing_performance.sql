@@ -55,7 +55,36 @@ final as (
         total_conversions,
         blended_ctr,
         blended_cpc,
-        blended_cpa
+        blended_cpa,
+
+        -- ============================================
+        -- Presentation-Layer Performance Flags
+        -- ============================================
+        
+        -- High traffic day: Sessions met the high-volume threshold
+        (coalesce(total_sessions, 0) >= {{ var('marketing_high_traffic_sessions') }}) as is_high_traffic_day,
+        
+        -- High spend day: Paid channel spend met the threshold
+        (
+            is_paid_channel 
+            and coalesce(total_spend, 0) >= {{ var('marketing_high_spend_threshold') }}
+        )                                                                             as is_high_spend_day,
+
+        -- Engaged audience: Bounce rate is below the acceptable threshold (quality traffic)
+        (
+            bounce_rate is not null 
+            and bounce_rate <= {{ var('marketing_engaged_bounce_rate_threshold') }}
+        )                                                                             as is_engaged_audience,
+        
+        -- Efficient ad spend: Paid channel CPC is below the strict efficiency threshold
+        (
+            is_paid_channel 
+            and blended_cpc is not null 
+            and blended_cpc <= {{ var('marketing_efficient_cpc_threshold') }}
+        )                                                                             as is_efficient_spend,
+        
+        -- Converting day: Campaign successfully drove at least 1 conversion
+        (coalesce(total_conversions, 0) > 0)                                          as is_converting_day
 
     from marketing_performance
 
