@@ -64,7 +64,7 @@ final as (
         coalesce(m.total_refunds, 0)                    as total_refunds,
         coalesce(m.net_revenue, 0)                      as net_revenue,
         coalesce(m.avg_order_value, 0)                  as avg_order_value,
-        coalesce(m.refund_rate, 0)                      as refund_rate, -- LEAD AE FIX
+        coalesce(m.refund_rate, 0)                      as refund_rate,
 
         -- Temporal metrics (from intermediate)
         m.first_order_date,
@@ -79,7 +79,27 @@ final as (
 
         -- Customer segments (from intermediate)
         coalesce(m.customer_segment, 'no_purchases')    as customer_segment,
-        coalesce(m.recency_tier, 'never_purchased')     as recency_tier
+        coalesce(m.recency_tier, 'never_purchased')     as recency_tier,
+
+        -- ============================================
+        -- Presentation-Layer Lifecycle Flags
+        -- ============================================
+        
+        -- High-value customer: Lifetime revenue meets VIP threshold (Used for VIP treatment, premium support, exclusive offers)
+        (coalesce(m.total_revenue, 0) >= {{ var('high_value_customer_threshold') }}) as is_high_value_customer,
+        
+        -- At-risk customer: Ordered before, but slipping away (Prime candidates for win-back campaigns)
+        (
+            m.days_since_last_order is not null 
+            and m.days_since_last_order > {{ var('at_risk_threshold_days') }}
+            and m.days_since_last_order <= {{ var('churn_threshold_days') }}
+        )                                                                           as is_at_risk_customer,
+        
+        -- Churned customer: Exceeded churn threshold (Requires reactivation efforts)
+        (
+            m.days_since_last_order is not null 
+            and m.days_since_last_order > {{ var('churn_threshold_days') }}
+        )                                                                           as is_churned_customer,
 
     from customers c
     

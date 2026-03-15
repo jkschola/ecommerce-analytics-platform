@@ -75,3 +75,12 @@ vars:
   
   # Days threshold to classify an order as "recent"
   recent_order_days: 90
+
+  # ----------------------------------------
+  # Customer Segmentation Thresholds
+  # ----------------------------------------
+  high_value_customer_threshold: 500
+  churn_threshold_days: 365
+  at_risk_threshold_days: 180
+
+
