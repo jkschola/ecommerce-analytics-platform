@@ -18,7 +18,7 @@ models:
       - Business logic flags pre-calculated (high-value, completed, recent)
       - Recency metrics ready for temporal analysis
       
-      **Source:** {{ ref('int_orders__customers_joined') }}
+      **Source:** `int_orders__customers_joined`
       
       **Key Metrics Available:**
       - Revenue analysis (total, average, by segment)
