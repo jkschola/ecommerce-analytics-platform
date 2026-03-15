@@ -60,8 +60,12 @@ with_lifecycle as (
         net_revenue,
         round(avg_order_value, 2)                       as avg_order_value,
 
+        -- FIX : Cap refund rate at 1.0 (100%) to handle synthetic data anomalies, while maintaining the 4-decimal precision.
         round(
-            total_refunds / nullif(total_revenue, 0),
+            least(
+                total_refunds / nullif(total_revenue, 0), 
+                1.0
+            ), 
         4)                                              as refund_rate,
 
         first_order_date,
