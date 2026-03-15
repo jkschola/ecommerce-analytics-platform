@@ -84,7 +84,40 @@ final as (
         )                                                                             as is_efficient_spend,
         
         -- Converting day: Campaign successfully drove at least 1 conversion
-        (coalesce(total_conversions, 0) > 0)                                          as is_converting_day
+        (coalesce(total_conversions, 0) > 0)                                          as is_converting_day,
+
+        -- ============================================
+        -- Presentation-Layer Performance Tiers
+        -- ============================================
+
+        -- Traffic tier (for volume-based cohort analysis)
+        case
+            when coalesce(total_sessions, 0) = 0 then '1. No Traffic'
+            when total_sessions < 100            then '2. Low'
+            when total_sessions < 500            then '3. Medium'
+            when total_sessions < 1000           then '4. High'
+            else                                      '5. Very High'
+        end                                             as traffic_tier,
+
+        -- Spend tier (for budget efficiency analysis)
+        case
+            when not is_paid_channel             then '0. Non-Paid'
+            when coalesce(total_spend, 0) = 0    then '1. No Spend'
+            when total_spend < 50                then '2. Low'
+            when total_spend < 100               then '3. Medium'
+            when total_spend < 200               then '4. High'
+            else                                      '5. Very High'
+        end                                             as spend_tier,
+
+        -- Engagement quality tier (based on bounce rate)
+        case
+            when bounce_rate is null             then '0. No Data'
+            when bounce_rate <= 0.30             then '1. Excellent'
+            when bounce_rate <= 0.40             then '2. Good'
+            when bounce_rate <= 0.60             then '3. Average'
+            when bounce_rate <= 0.80             then '4. Poor'
+            else                                      '5. Very Poor'
+        end                                             as engagement_tier
 
     from marketing_performance
 
