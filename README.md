@@ -108,6 +108,9 @@ graph TD
   - Event-driven `FULL OUTER JOIN` to rescue orphaned spend
   - Custom financial reconciliation singular tests (`assert_ad_spend_matches_staging`)
 
+  #### 🚧 Marts Layer (In progress)
+- `fct_orders` ✅ (28 tests)
+
 ## 📈 Data Sources
 
 | Source | Table | Records | Grain | Date Range |
@@ -217,8 +220,8 @@ This project demonstrates mastery of all 8 certification exam topics:
 - [x] **Day 1:** Environment setup, source configuration, first staging model
 - [x] **Day 2:** Complete staging layer (4 models, 93 tests)
 - [x] **Day 3:** Build intermediate layer part 1 (customer order history & joined orders)
-- [x] **Day 4:** Build intermediate layer part 2 (marketing attribution & configuration refactor) ← **You are here**
-- [ ] **Day 5:** Complete marts layer (dim & fct models)
+- [x] **Day 4:** Build intermediate layer part 2 (marketing attribution & configuration refactor)
+- [ ] **Day 5:** Complete marts layer (dim & fct models) fct_orders completed ← **You are here**
 
 ### 📅 Week 2: Quality & Governance (Day 6-10)
 - [ ] **Day 6:** Advanced testing (dbt-expectations, custom tests)
