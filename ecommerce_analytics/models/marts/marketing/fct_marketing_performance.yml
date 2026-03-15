@@ -1,0 +1,246 @@
+version: 2
+
+models:
+  - name: fct_marketing_performance
+    description: >
+      Marketing performance fact table at daily channel grain.
+      
+      **Purpose:** Single source of truth for marketing ROI analysis,
+      combining web analytics and paid advertising metrics.
+      
+      **Grain:** One row per (activity_date, traffic_channel)
+      
+      **Materialization:** Table (rebuilt nightly)
+      
+      **Architecture Pattern:**
+      This fact table leverages the pre-aggregated intermediate layer.
+      The intermediate handles all aggregation and join logic (including
+      FULL OUTER JOIN to preserve orphaned spend). This fact adds
+      presentation logic: time dimensions, performance flags, and tiers.
+      
+      **Typical Queries:**
+      ```sql
+      -- Monthly spend and conversions by channel
+      SELECT activity_date_month, traffic_channel,
+             SUM(total_spend), SUM(total_conversions)
+      FROM fct_marketing_performance
+      WHERE is_paid_channel = true
+      GROUP BY 1, 2;
+      
+      -- ROI by traffic tier
+      SELECT traffic_tier, 
+             SUM(total_conversions) / NULLIF(SUM(total_spend), 0) AS roas
+      FROM fct_marketing_performance
+      GROUP BY 1;
+      ```
+    
+    config:
+      tags: ['daily', 'marketing', 'fact_table']
+    
+    columns:
+      # Primary Key
+      - name: marketing_id
+        description: Surrogate primary key (hash of activity_date and traffic_channel).
+        tests:
+          - unique
+          - not_null
+          
+      # Composite business keys
+      - name: activity_date
+        description: Date of marketing activity (session date or ad performance date).
+        tests:
+          - not_null
+      
+      - name: traffic_channel
+        description: Standardized traffic channel category from the intermediate layer.
+        tests:
+          - not_null
+      
+      # Time dimensions
+      - name: activity_date_week
+        description: Activity date truncated to week (Monday start).
+        tests:
+          - not_null
+      
+      - name: activity_date_month
+        description: Activity date truncated to month (first day of month).
+        tests:
+          - not_null
+      
+      - name: activity_date_quarter
+        description: Activity date truncated to quarter (Q1/Q2/Q3/Q4).
+        tests:
+          - not_null
+      
+      - name: activity_date_year
+        description: Activity date truncated to year.
+        tests:
+          - not_null
+      
+      # Channel classification
+      - name: is_paid_channel
+        description: Distinguishes paid advertising channels from organic/direct channels.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      # Session metrics
+      - name: total_sessions
+        description: Total web sessions for this date + channel.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: unique_users
+        description: Unique users (deduplicated by user_id).
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: total_page_views
+        description: Total page views across all sessions.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: total_session_duration_seconds
+        description: Total session duration in seconds.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: bounced_sessions
+        description: Count of single-page sessions.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: engaged_sessions
+        description: Count of engaged sessions (5+ pages or 3+ minutes).
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: bounce_rate
+        description: Bounce rate (bounced_sessions / total_sessions). Range 0 to 1.
+        tests:
+          # We allow NULLs here for days with 0 sessions
+          - dbt_utils.expression_is_true:
+              expression: "between 0 and 1"
+      
+      - name: avg_session_duration_seconds
+        description: Average session duration in seconds.
+      
+      # Ad metrics
+      - name: total_impressions
+        description: Total ad impressions. NULL for non-paid channels.
+      
+      - name: total_ad_clicks
+        description: Total ad clicks. NULL for non-paid channels.
+      
+      - name: total_spend
+        description: Total advertising spend (€). NULL for non-paid channels.
+      
+      - name: total_conversions
+        description: Total conversions attributed to ads. NULL for non-paid channels.
+      
+      - name: blended_ctr
+        description: Click-through rate (clicks / impressions). NULL for non-paid channels or 0 impressions.
+      
+      - name: blended_cpc
+        description: Cost per click (spend / clicks). NULL for non-paid channels or 0 clicks.
+      
+      - name: blended_cpa
+        description: Cost per acquisition (spend / conversions). NULL for non-paid channels or 0 conversions.
+      
+      # Performance flags
+      - name: is_high_traffic_day
+        description: >
+          True if sessions >= {{ var('marketing_high_traffic_sessions') }}.
+          Use for peak traffic period analysis.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: is_high_spend_day
+        description: >
+          True if paid channel spent >= €{{ var('marketing_high_spend_threshold') }}.
+          Use for budget monitoring and spend alerts.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: is_engaged_audience
+        description: >
+          True if bounce_rate <= {{ var('marketing_engaged_bounce_rate_threshold') }} (quality traffic).
+          Use for content relevance benchmarking.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: is_efficient_spend
+        description: >
+          True if paid channel CPC <= €{{ var('marketing_efficient_cpc_threshold') }} (cost efficiency).
+          Use for campaign optimization targeting.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: is_converting_day
+        description: >
+          True if conversions > 0.
+          Use for attribution success tracking.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      # Performance tiers
+      - name: traffic_tier
+        description: Traffic volume tier with numeric prefixes for BI sorting.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - '1. No Traffic'
+                - '2. Low'
+                - '3. Medium'
+                - '4. High'
+                - '5. Very High'
+      
+      - name: spend_tier
+        description: Ad spend tier with numeric prefixes for BI sorting.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - '0. Non-Paid'
+                - '1. No Spend'
+                - '2. Low'
+                - '3. Medium'
+                - '4. High'
+                - '5. Very High'
+      
+      - name: engagement_tier
+        description: Engagement quality tier based on bounce rate.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - '0. No Data'
+                - '1. Excellent'
+                - '2. Good'
+                - '3. Average'
+                - '4. Poor'
+                - '5. Very Poor'
