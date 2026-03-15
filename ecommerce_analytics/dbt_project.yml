@@ -65,3 +65,13 @@ vars:
   source_mapping_direct: ['direct', '(direct)']
   source_mapping_referral: ['referral']
   source_mapping_social: ['social', 'facebook', 'instagram', 'linkedin', 'twitter']
+
+
+  # ----------------------------------------
+  # Order Classification Thresholds
+  # ----------------------------------------
+  # Revenue threshold for a premium/high-value order
+  high_value_threshold: 150     
+  
+  # Days threshold to classify an order as "recent"
+  recent_order_days: 90

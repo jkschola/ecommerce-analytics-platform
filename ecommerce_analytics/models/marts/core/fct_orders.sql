@@ -63,21 +63,15 @@ final as (
         days_from_signup_to_order,
         is_new_customer_order,
 
-        -- Business Logic Flags
-        -- High-value order: Revenue in top 20% (configurable threshold)
-        (revenue >= 150)                                as is_high_value_order,
-
-        -- Completed order: Status indicates successful transaction
-        (order_status = 'completed')                    as is_completed_order,
-
-        -- Recent order: Within last 90 days from reference date
-        (days_since_order <= 90)                        as is_recent_order,
+        -- Business Logic Flags (Configuration-Driven)
+        (revenue >= {{ var('high_value_threshold') }})          as is_high_value_order,
+        (order_status = 'completed')                            as is_completed_order,
+        (days_since_order <= {{ var('recent_order_days') }})    as is_recent_order,
 
         -- Recency Metrics
-        -- Days since order (from reference date)
         days_since_order,
 
-        -- Order age category (for cohort analysis)
+        -- Order age category (for cohort analysis : Hardcoded to guarantee mathematical match with string labels)
         case
             when days_since_order <= 30    then '1. 0-30 days'
             when days_since_order <= 90    then '2. 31-90 days'
