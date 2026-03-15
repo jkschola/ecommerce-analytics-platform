@@ -47,7 +47,23 @@ final as (
 
         -- Customer tenure metrics
         days_from_signup_to_order,
-        is_new_customer_order
+        is_new_customer_order,
+
+        -- Business Logic Flags
+        -- High-value order: Revenue in top 20% (configurable threshold)
+        (revenue >= 150)                                as is_high_value_order,
+
+        -- Completed order: Status indicates successful transaction
+        (order_status = 'completed')                    as is_completed_order,
+
+        -- Recent order: Within last 90 days from reference date
+        (
+            datediff(
+                'day',
+                cast(order_date as date),
+                '{{ var("recency_reference_date") }}'
+            ) <= 90
+        )                                               as is_recent_order
 
     from orders
 
