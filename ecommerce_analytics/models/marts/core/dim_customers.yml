@@ -137,7 +137,7 @@ models:
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              expression: ">= 0 and <= 1"
+              expression: "between 0 and 1"
       
       # Temporal metrics
       - name: first_order_date
