@@ -65,9 +65,9 @@ jobs:
         # Using a widely trusted 3rd party action to grab artifacts from OTHER workflow runs
         uses: dawidd6/action-download-artifact@v3
         with:
-          workflow: pr_ci.yml # We will point this to our CD pipeline later!
+          workflow: deploy_prod.yml
           branch: main
-          name: dbt-ci-artifacts
+          name: dbt-prod-artifacts
           path: ${{ env.PROJECT_FOLDER }}/state/
           if_no_artifact_found: warn
 
