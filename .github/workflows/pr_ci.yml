@@ -15,7 +15,7 @@ jobs:
     
     # Define variables for cleaner step logic
     env:
-      DBT_PROJECT_DIR: ./ecommerce_analytics
+      PROJECT_FOLDER: ./ecommerce_analytics
     
     steps:
       - name: Checkout code
@@ -54,15 +54,15 @@ jobs:
           EOF
           
       - name: Install dbt packages
-        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        working-directory: ${{ env.PROJECT_FOLDER }}
         run: dbt deps
         
       - name: Run dbt debug (Verify Connection)
-        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        working-directory: ${{ env.PROJECT_FOLDER }}
         run: dbt debug --target ci
         
       - name: Run dbt build
-        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        working-directory: ${{ env.PROJECT_FOLDER }}
         run: dbt build --target ci
         
       # Upload the manifest.json - Crucial for our next step (Slim CI!)
@@ -72,5 +72,5 @@ jobs:
         with:
           name: dbt-ci-artifacts
           path: |
-            ${{ env.DBT_PROJECT_DIR }}/target/manifest.json
-            ${{ env.DBT_PROJECT_DIR }}/target/run_results.json
+            ${{ env.PROJECT_FOLDER }}/target/manifest.json
+            ${{ env.PROJECT_FOLDER }}/target/run_results.json
