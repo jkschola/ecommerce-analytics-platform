@@ -1,0 +1,73 @@
+name: dbt Production Deployment
+
+# Trigger: Only run when code is MERGED or PUSHED to the main branch
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ecommerce_analytics/**'
+      - '.github/workflows/deploy_prod.yml'
+
+jobs:
+  dbt_deploy_prod:
+    name: Deploy to Production Snowflake
+    runs-on: ubuntu-latest
+    
+    env:
+      PROJECT_FOLDER: ./ecommerce_analytics
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Create Production profiles.yml
+        # Notice the target is 'prod' and the schema is a static production schema!
+        run: |
+          mkdir -p ~/.dbt
+          cat << EOF > ~/.dbt/profiles.yml
+          ecommerce_analytics:
+            target: prod
+            outputs:
+              prod:
+                type: snowflake
+                account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+                user: ${{ secrets.SNOWFLAKE_USER }}
+                password: ${{ secrets.SNOWFLAKE_PASSWORD }}
+                role: ${{ secrets.SNOWFLAKE_ROLE }}
+                database: ${{ secrets.SNOWFLAKE_DATABASE }}
+                warehouse: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+                schema: DBT_PROD
+                threads: 4
+                client_session_keep_alive: False
+          EOF
+          
+      - name: Install dbt packages
+        working-directory: ${{ env.PROJECT_FOLDER }}
+        run: dbt deps
+        
+      - name: Run dbt build (Production Deployment)
+        working-directory: ${{ env.PROJECT_FOLDER }}
+        # We run a full build here to ensure Production is 100% in sync with main
+        run: dbt build --target prod
+        
+      # THE MOST IMPORTANT STEP FOR SLIM CI
+      # This saves the official "Production State" for your PRs to download later
+      - name: Upload Production Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-prod-artifacts
+          path: |
+            ${{ env.PROJECT_FOLDER }}/target/manifest.json
+            ${{ env.PROJECT_FOLDER }}/target/run_results.json
