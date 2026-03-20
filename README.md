@@ -64,9 +64,9 @@ graph TD
     J --> M[fct_marketing_performance]:::marts
 ```
 
-## 🏗️ Current Status: Intermediate Models Complete
+## 🏗️ Current Status: Core Data Warehouse Complete
 
-**Milestone:** Staging layer complete (93 tests passing), intermediate layer complete (45 tests passing).
+**Milestone:** Staging, Intermediate, and Marts layers are 100% complete. All models are documented, heavily tested (226 total tests passing), and ready for BI consumption.
 
 ### Data Pipeline Progress
 
@@ -75,7 +75,7 @@ graph TD
 | **Sources** | 4 tables | 30+ | Source freshness | ✅ Configured |
 | **Staging** | 4/4 models | 93 | 100% documented | ✅ **Complete** |
 | **Intermediate** | 3/3 models | 45 | 100% documented | ✅ **Complete** |
-| **Marts** | 0/7 models | 0 | - | 📅 Planned |
+| **Marts** | 3/3 models | 88 | 100% documented | ✅ **Complete** |
 
 ### Layer Details
 
@@ -91,7 +91,7 @@ graph TD
 - Source freshness monitoring
 - Configuration-as-code for dynamic taxonomy mapping
 
-#### ✅ Intermediate Layer (Complete)
+#### ✅ Intermediate Layer (Entity & Process Aligned)
 - `int_customers__order_history` ✅ (23 tests)
   - Customer lifecycle metrics (first/last order, tenure)
   - Revenue aggregations (total, refunds, net)
@@ -109,8 +109,22 @@ graph TD
   - Event-driven `FULL OUTER JOIN` to rescue orphaned spend
   - Custom financial reconciliation singular tests (`assert_ad_spend_matches_staging`)
 
-  #### 🚧 Marts Layer (In progress)
+#### ✅ Marts Layer (Business Aligned - Kimball Star Schema)
+- `dim_customers` ✅ (30 tests)
+  - Type 1 SCD (Current State) customer dimension.
+  - Defensive `COALESCE` logic to maintain visibility of unconverted signups in the BI layer.
+  - Dynamic presentation-layer flags (`is_high_value_customer`, `is_churned_customer`) driven by `dbt_project.yml` variables.
+
 - `fct_orders` ✅ (28 tests)
+  - Core transaction fact table at the order grain.
+  - Pre-computed time dimensions to eliminate `DATE_TRUNC` compute overhead in BI tools.
+  - Boolean business flags (`is_first_order`, `is_high_value_order`) for rapid dashboard filtering.
+
+- `fct_marketing_performance` ✅ (30 tests)
+  - Daily campaign fact table serving ROI, CPC, CPA, and ROAS metrics.
+  - Single-column surrogate keys (`dbt_utils.generate_surrogate_key`) for highly optimized downstream joins.
+  - Defensive `NULLIF()` and `IS NOT NULL` math (Three-Valued Logic) to prevent division-by-zero execution errors and boolean filter corruption.
+  - Integer-prefixed segmentation tiers (e.g., `'1. Low'`, `'2. Medium'`) to force native alphabetical sorting in BI tools without manual configuration.
 
 ## 📈 Data Sources
 
@@ -137,8 +151,7 @@ cd ecommerce-analytics-platform
 
 # 2. Python environment
 python -m venv venv
-.\venv\Scripts\activate  # Windows
-# source venv/bin/activate  # Mac/Linux
+.\venv\Scripts\activate  # Windows (venv/bin/activate for Mac/Linux)
 pip install -r requirements.txt
 
 # 3. Configure Snowflake credentials
@@ -155,10 +168,8 @@ cd ecommerce_analytics
 dbt deps
 dbt debug  # Verify connection
 
-# 6. Build models
-dbt run --select staging      # Build staging layer
-dbt run --select intermediate # Build intermediate layer
-dbt test                      # Run all tests (138 tests passing)
+# 6. Build and Test the pipeline
+dbt build  # Builds and tests staging, intermediate, and marts
 
 # 7. View documentation
 dbt docs generate
@@ -190,97 +201,63 @@ packages:
 
 ## 🎓 dbt Analytics Engineering Certification Coverage
 
-This project demonstrates mastery of all 8 certification exam topics:
+This project demonstrates mastery of the core certification exam topics:
 
-| Topic | Status | Evidence |
-| :--- | :--- | :--- |
-| **1. Developing dbt models** | ✅ Complete | 7 models, clean DAG, DRY principles, Jinja variables |
-| **2. Model governance** | 📅 Day 7 | Contracts, versioning, access control |
-| **3. Debugging errors** | ✅ Demonstrated | NULL handling fix, orphaned spend recovery, compilation debugging |
-| **4. Managing pipelines** | 📅 Day 8 | Incremental models, snapshots |
-| **5. Implementing tests** | ✅ Complete | 138 tests (generic, custom singular, dbt_utils) |
-| **6. Documentation** | ✅ Complete | Full docs with lineage, dynamic Jinja doc blocks |
-| **7. External dependencies** | ✅ Complete | Source freshness, exposures (planned) |
-| **8. Leveraging state** | 📅 Day 8-9 | State selectors, dbt retry |
-
-### Key Certification Concepts Demonstrated
-
-- ✅ **Modularity & DRY:** Reusable customer segmentation logic, `dbt_project.yml` variables.
-- ✅ **Testing Strategy:** 138 tests across sources, staging, and intermediate layers.
-- ✅ **Clean DAGs:** 4 staging → 3 intermediate → marts (clear lineage).
-- ✅ **Source Configuration:** Freshness checks, `loaded_at` fields.
-- ✅ **Documentation:** Doc blocks, column descriptions, model lineage, ADRs.
-- ✅ **Debugging:** NULL handling, pipeline financial loss debugging, Jinja compilation errors.
-- 📅 **Model Contracts:** Coming in Day 7
-- 📅 **Incremental Models:** Coming in Day 5
-- 📅 **Snapshots:** Coming in Day 5
+- ✅ **Topic 1: Developing dbt models:** Surrogate keys, DRY CTEs, Jinja compilation.
+- ✅ **Topic 2: Fact & Dimension Design:** Denormalization trade-offs, Type 1 SCDs, star schemas.
+- ✅ **Topic 3: Debugging Data Errors:** Resolved upstream synthetic data anomalies (`refund_rate > 100%`) using SQL caps (`least()`).
+- ✅ **Topic 5: Implementing tests:** 226 tests (generic, singular, bounds checking via `dbt_utils.expression_is_true`).
+- ✅ **Topic 6: Documentation:** Parameterized markdown descriptions via YAML and `dbt_project.yml`.
 
 ## 📅 Development Roadmap
 
-### ✅ Week 1: Foundation (Day 1-5)
-- [x] **Day 1:** Environment setup, source configuration, first staging model
-- [x] **Day 2:** Complete staging layer (4 models, 93 tests)
-- [x] **Day 3:** Build intermediate layer part 1 (customer order history & joined orders)
-- [x] **Day 4:** Build intermediate layer part 2 (marketing attribution & configuration refactor)
-- [ ] **Day 5:** Complete marts layer (dim & fct models) fct_orders completed ← **You are here**
+**Phase 1: Core Architecture** ✅ Completed
+- Full Medallion architecture (Staging, Intermediate, Marts)
+- Comprehensive data quality framework (226 tests)
+- Configuration-as-Code for dynamic business thresholds
 
-### 📅 Week 2: Quality & Governance (Day 6-10)
-- [ ] **Day 6:** Advanced testing (dbt-expectations, custom tests)
-- [ ] **Day 7:** Model contracts and versioning (dbt 1.8 features)
-- [ ] **Day 8:** CI/CD with GitHub Actions (slim CI)
-- [ ] **Day 9:** Incremental models and Snapshots
-- [ ] **Day 10:** Performance optimization + final polish
+**Phase 2: CI/CD & Production Governance** 🚧 In Progress
+- Implement GitHub Actions for Slim CI/CD deployment
+- Integrate `dbt-expectations` for advanced anomaly detection
+- Apply dbt 1.8 model contracts and versioning
+- Implement incremental materializations for large-scale fact tables
 
 ## 🔍 Quality Metrics
 
-### Test Coverage
+### Test Coverage (226 Total Tests - 100% Pass Rate)
 ```text
-Total Tests: 138
-├── Staging: 93 tests
-│   ├── unique/not_null: 42
-│   ├── relationships: 4
-│   ├── accepted_values: 25
-│   └── dbt_utils.expression_is_true: 22
-└── Intermediate: 45 tests
-    ├── unique/not_null: 24
-    ├── accepted_values: 4
-    ├── expression_is_true (model-level): 4
-    ├── expression_is_true (column-level): 12
-    └── singular (financial reconciliation): 1
+├── Staging: 93 tests (unique, not_null, accepted_values)
+├── Intermediate: 45 tests (bounds checking, financial reconciliation)
+└── Marts: 88 tests 
+    ├── Grain Validation (Surrogate Keys & PKs)
+    ├── Rigorous dbt_utils.expression_is_true bounds (>= 0)
+    └── Exact String Matching via accepted_values for BI Tiers
 
-Pass Rate: 100%
 ```
 
 ### Documentation Coverage
-- **Models:** 7/7 (100%)
-- **Columns:** 120/120 (100%)
+- **Models:** 10/10 (100%)
+- **Columns:** 150+/150+ (100%)
 - **Doc blocks:** 7 (revenue logic, order status, engagement levels, ad KPIs, customer segments, recency tiers, traffic taxonomy)
 
-## 🛠️ Key Technical Decisions
+## 🛠️ Key Technical Architecture Decisions
 
 ### 1. Configuration-as-Code for Marketing Taxonomy
-**Problem:** Hardcoded UTM source strings inside staging SQL `CASE` statements created brittle pipelines susceptible to marketing tracking changes.
+**Problem:** Hardcoded UTM tracking strings inside SQL `CASE` statements created brittle pipelines that broke when marketing changed their naming conventions.
+**Solution:** Abstracted taxonomy rules into `dbt_project.yml` variables. Leveraged Jinja `join()` filters to dynamically compile YAML lists into SQL `IN (...)` clauses, ensuring logic, tests, and documentation remain perfectly synchronized.
 
-**Solution:** Refactored taxonomy into `dbt_project.yml` variables, utilizing native Jinja `join` filters to dynamically compile YAML lists into valid SQL `IN` clauses, synchronizing tests and documentation automatically.
+### 2. Event-Driven FULL OUTER JOIN
+**Problem:** A standard `LEFT JOIN` in the marketing model silently orphaned €8.7k of Facebook Ad spend on days with zero Google Analytics web sessions.
+**Solution:** Rejected a Cartesian date-spine approach (which would have bloated warehouse row count by 83%). Instead, implemented a `FULL OUTER JOIN` to rescue the orphaned spend while exclusively generating rows for actual real-world events.
 
-### 2. Event-Driven FULL OUTER JOIN vs Cartesian Date Spine
-**Problem:** An asymmetric `LEFT JOIN` in the marketing intermediate model silently orphaned €8.7k in Facebook ad spend on days where GA web tracking recorded 0 sessions.
+### 3. Environment-Aware Time Travel
+**Problem:** Static synthetic data (ending in 2024) evaluated against `current_timestamp()` caused all test customers to instantly appear as "churned" in development.
+**Solution:** Implemented a global `recency_reference_date` Jinja variable. This allows seamless toggling between static mock dates for DEV testing and real-time execution in PROD.
 
-**Solution:** Rejected a Cartesian date-spine approach to prevent an 83% spike in empty warehouse row generation. Implemented a `FULL OUTER JOIN` to rescue the orphaned spend while exclusively generating rows for real-world events.
+### 4. Three-Valued Logic & Defensive Booleans (NULL Handling in Customer Segmentation)
+**Problem:** Customers with zero lifetime orders evaluated to `NULL` for the `is_active_customer` flag instead of `false`, which corrupts binary filters in BI dashboards.
+**Solution:** Implemented strict `COALESCE` fallbacks and explicit `IS NOT NULL` SQL guardrails to safely handle database unknowns, guaranteeing absolute True/False states for the presentation layer.
 
-### 3. Configurable Reference Date for Recency
-**Problem:** Static demo data (ends 2024-12-31) + `current_timestamp()` = all customers appear inactive.
-
-**Solution:** Configurable `recency_reference_date` variable allows toggling between DEV mock dates and PROD real-time execution.
-
-### 4. NULL Handling in Customer Segmentation
-**Discovery:** Customers with zero completed orders returned `NULL` for `is_active_customer` instead of `false`.
-
-**Fix:** Implemented explicit defensive `COALESCE` and boolean `NULL` handling logic to guarantee absolute true/false states.
-```sql
-(last_order_date is not null 
- and days_since_last_order <= 90) as is_active_customer
-```
 
 ### 5. Schema Naming Strategy
 Using dbt's custom schema feature: `DBT_DEV_STAGING`, `DBT_DEV_INTERMEDIATE`, `DBT_PROD_MARTS`
@@ -310,7 +287,7 @@ This is a portfolio project demonstrating Analytics Engineering best practices. 
 
 ---
 
-**Project Status:** 🚧 Active Development 
-**Last Updated:** March 12, 2026  
+**Project Status:** 🚧 Phase 2: CI/CD & Production Readiness
+**Last Updated:** March 20, 2026  
 
-**Completion:** ~70% (Intermediate Layer Complete)
+**Completion:** ~85% (Core Architecture Complete)
