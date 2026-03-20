@@ -1,0 +1,76 @@
+name: dbt Pull Request CI
+
+# Trigger: Only run on PRs to main, and ONLY if dbt files are changed.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ecommerce_analytics/**'
+      - '.github/workflows/pr_ci.yml'
+
+jobs:
+  dbt_build_and_test:
+    name: Build & Test in Temporary Schema
+    runs-on: ubuntu-latest
+    
+    # Define variables for cleaner step logic
+    env:
+      DBT_PROJECT_DIR: ./ecommerce_analytics
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip' # Speeds up installation!
+          
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Create dbt profiles.yml
+        # Note: By writing to ~/.dbt, dbt finds it automatically without extra env vars
+        run: |
+          mkdir -p ~/.dbt
+          cat << EOF > ~/.dbt/profiles.yml
+          ecommerce_analytics:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+                user: ${{ secrets.SNOWFLAKE_USER }}
+                password: ${{ secrets.SNOWFLAKE_PASSWORD }}
+                role: ${{ secrets.SNOWFLAKE_ROLE }}
+                database: ${{ secrets.SNOWFLAKE_DATABASE }}
+                warehouse: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+                schema: DBT_PR_CI_${{ github.event.pull_request.number }}
+                threads: 4
+                client_session_keep_alive: False
+          EOF
+          
+      - name: Install dbt packages
+        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        run: dbt deps
+        
+      - name: Run dbt debug (Verify Connection)
+        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        run: dbt debug --target ci
+        
+      - name: Run dbt build
+        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        run: dbt build --target ci
+        
+      # Upload the manifest.json - Crucial for our next step (Slim CI!)
+      - name: Upload dbt artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-ci-artifacts
+          path: |
+            ${{ env.DBT_PROJECT_DIR }}/target/manifest.json
+            ${{ env.DBT_PROJECT_DIR }}/target/run_results.json
