@@ -61,27 +61,26 @@ jobs:
         working-directory: ${{ env.PROJECT_FOLDER }}
         run: dbt debug --target ci
         
-      - name: Generate Baseline State (Main Branch)
+      - name: Download Production Manifest (for Slim CI)
+        # Using a widely trusted 3rd party action to grab artifacts from OTHER workflow runs
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: pr_ci.yml # We will point this to our CD pipeline later!
+          branch: main
+          name: dbt-ci-artifacts
+          path: ${{ env.PROJECT_FOLDER }}/state/
+          if_no_artifact_found: warn
+
+      - name: Run dbt build (Slim CI with Fallback)
         working-directory: ${{ env.PROJECT_FOLDER }}
         run: |
-          # Fetch the main branch from GitHub
-          git fetch origin main
-          # Checkout main
-          git checkout origin/main
-          # Compile the project to generate main's manifest.json
-          dbt compile --target ci
-          # Create a state folder and copy the manifest into it
-          mkdir -p state
-          cp target/manifest.json state/
-          # Checkout the PR branch again to run our actual tests
-          git checkout -
-          # Re-install packages in case the PR added new ones
-          dbt deps
-          
-      - name: Run dbt build (Slim CI)
-        working-directory: ${{ env.PROJECT_FOLDER }}
-        # The magic command: Only build modified models and their children!
-        run: dbt build --select state:modified+ --state ./state --target ci
+          if [ -f "state/manifest.json" ]; then
+            echo "🟢 Production state found! Running blazing-fast Slim CI..."
+            dbt build --target ci --select state:modified+ --state ./state
+          else
+            echo "🟡 No state found (or first run). Falling back to full build..."
+            dbt build --target ci
+          fi
         
       # Upload the manifest.json - Crucial for our next step (Slim CI!)
       - name: Upload dbt artifacts
