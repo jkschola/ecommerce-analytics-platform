@@ -83,4 +83,12 @@ vars:
   churn_threshold_days: 365
   at_risk_threshold_days: 180
 
+  # ----------------------------------------
+  # Marketing Performance Thresholds
+  # ----------------------------------------
+  marketing_high_traffic_sessions: 500
+  marketing_high_spend_threshold: 100
+  marketing_engaged_bounce_rate_threshold: 0.40
+  marketing_efficient_cpc_threshold: 2.00
+
 
