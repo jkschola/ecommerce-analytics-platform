@@ -2,19 +2,19 @@
 
 [![dbt](https://img.shields.io/badge/dbt-1.8.0+-orange.svg)](https://www.getdbt.com/)
 [![Snowflake](https://img.shields.io/badge/Snowflake-Ready-blue.svg)](https://www.snowflake.com/)
-[![Tests](https://img.shields.io/badge/Tests-138%20Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-226%20Passing-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **A production-grade analytics engineering project demonstrating modern data stack best practices with dbt 1.8+ and Snowflake.**
 
 ## 🎯 Project Overview
 
-Building a multi-source e-commerce analytics platform following Analytics Engineering best practices:
+Building a multi-source e-commerce analytics platform following strict Analytics Engineering best practices:
 - ✅ Medallion architecture (staging → intermediate → marts)
-- ✅ Comprehensive data quality framework (138 tests)
-- ✅ Production-ready documentation with lineage
+- ✅ Comprehensive data quality framework (226 tests)
+- ✅ Production-ready documentation with lineage and data contracts
+- ✅ Dimensional Modeling (Kimball Star Schema)
 - 🚧 CI/CD automation (in progress)
-- ✅ Model governance with data contracts
 
 ## 📊 Architecture & Data Flow
 ```text
@@ -27,40 +27,40 @@ Staging Layer (4/4 models) ✅ COMPLETE
     └── stg_facebook_ads__ad_performance
     ↓
 Intermediate Layer (3/3 models) ✅ COMPLETE
-    ├── int_customers__order_history ✅ COMPLETE
-    ├── int_marketing__channel_performance ✅ COMPLETE
-    └── int_orders__customers_joined ✅ COMPLETE
+    ├── int_customers__order_history
+    ├── int_marketing__channel_performance
+    └── int_orders__customers_joined
     ↓
-Marts Layer (0 models) 📅 PLANNED
+Marts Layer (3/3 models) ✅ COMPLETE
     ├── Core: dim_customers, fct_orders
-    ├── Marketing: fct_marketing_performance
-    └── Finance: fct_revenue
+    └── Marketing: fct_marketing_performance
 ```
 ```mermaid
 graph TD
     %% Define semantic, light/dark mode friendly classes
     classDef raw fill:transparent,stroke:#58a6ff,stroke-width:2px;
-    classDef completed fill:#2ea0431a,stroke:#2ea043,stroke-width:2px;
-    classDef planned fill:transparent,stroke:#8b949e,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef staging fill:#d299221a,stroke:#d29922,stroke-width:2px;
+    classDef intermediate fill:#8957e51a,stroke:#8957e5,stroke-width:2px;
+    classDef marts fill:#2ea0431a,stroke:#2ea043,stroke-width:2px;
 
     %% Raw Sources
-    A[Shopify Raw]:::raw --> B[stg_shopify__customers]:::completed
-    A --> C[stg_shopify__orders]:::completed
-    D[GA4 Raw]:::raw --> E[stg_google_analytics__sessions]:::completed
-    F[FB Ads Raw]:::raw --> G[stg_facebook_ads__ad_performance]:::completed
+    A[Shopify Raw]:::raw --> B[stg_shopify__customers]:::staging
+    A --> C[stg_shopify__orders]:::staging
+    D[GA4 Raw]:::raw --> E[stg_google_analytics__sessions]:::staging
+    F[FB Ads Raw]:::raw --> G[stg_facebook_ads__ad_performance]:::staging
     
     %% Intermediate
-    C --> H[int_customers__order_history]:::completed
-    B --> I[int_orders__customers_joined]:::completed
+    C --> H[int_customers__order_history]:::intermediate
+    B --> I[int_orders__customers_joined]:::intermediate
     C --> I
     
-    E --> J[int_marketing__channel_performance]:::completed
+    E --> J[int_marketing__channel_performance]:::intermediate
     G --> J
     
     %% Marts
-    H --> K[dim_customers]:::planned
-    I --> L[fct_orders]:::planned
-    J --> M[fct_marketing_performance]:::planned
+    H --> K[dim_customers]:::marts
+    I --> L[fct_orders]:::marts
+    J --> M[fct_marketing_performance]:::marts
 ```
 
 ## 🏗️ Current Status: Intermediate Models Complete
