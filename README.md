@@ -59,6 +59,7 @@ graph TD
     
     %% Marts
     H --> K[dim_customers]:::marts
+    B --> K
     I --> L[fct_orders]:::marts
     J --> M[fct_marketing_performance]:::marts
 ```
@@ -78,7 +79,7 @@ graph TD
 
 ### Layer Details
 
-#### ✅ Staging Layer (Complete)
+#### ✅ Staging Layer (Source Aligned)
 - `stg_shopify__customers` (10 tests)
 - `stg_shopify__orders` (36 tests) 
 - `stg_google_analytics__sessions` (22 tests)
